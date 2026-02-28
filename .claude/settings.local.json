@@ -24,7 +24,11 @@
       "Bash(git remote add origin https://github.com/emanuelgstrabajo/ECE.git)",
       "Bash(git push -u origin master --tags)",
       "Bash(git add .claude/settings.local.json)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(git add docs/decisions/superadmin-scope-questionnaire.md)",
+      "Bash(git checkout -b chore/update-settings)",
+      "Bash(git push -u origin chore/update-settings)",
+      "Bash(gh pr:*)"
     ]
   }
 }
