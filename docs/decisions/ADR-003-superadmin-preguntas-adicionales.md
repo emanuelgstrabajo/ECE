@@ -1,9 +1,9 @@
 # ADR-003 — SUPERADMIN: Preguntas Adicionales (surgidas de ADR-002)
 
 **Fecha:** 2026-02-28
-**Estado:** ⏳ EN REVISIÓN — Pendiente de respuestas
+**Estado:** ✅ APROBADO
 **Autor:** Claude (SIRES Dev Agent)
-**Contexto:** ADR-002 aprobado — nuevas dudas sobre el alcance del SUPERADMIN
+**Contexto:** ADR-002 aprobado — decisiones sobre el alcance del SUPERADMIN
 
 ---
 
@@ -19,51 +19,44 @@ Este cuestionario cierra esas brechas antes de construir la Fase 2.
 
 ## Sección 1 — Supervisión sobre lo que crea el ADMIN_UNIDAD
 
-El ADMIN_UNIDAD (ADR-002 P1=D) puede crear cuentas de usuario y designar
-otros administradores en su unidad de forma autónoma.
-
 ### SA-P1. ¿Las cuentas creadas por un ADMIN_UNIDAD se activan de inmediato?
 
-**Opciones:**
+**Respuesta: B**
 
-| # | Comportamiento | Implicación |
-|---|---------------|-------------|
-| A | Sí, se activan inmediatamente. El ADMIN_UNIDAD tiene plena autonomía. | Más ágil; el admin no depende del SUPERADMIN para el día a día. |
-| B | Se activan inmediatamente, pero el SUPERADMIN recibe una notificación/alerta en su panel de que se creó una cuenta nueva. | Autonomía con visibilidad. |
-| C | Quedan en estado "pendiente de aprobación". El SUPERADMIN debe aprobarlas antes de que el usuario pueda hacer login. | Control total; puede ser lento si el SUPERADMIN no está disponible. |
+Las cuentas se activan inmediatamente, pero el SUPERADMIN recibe una
+notificación/alerta en su panel de que se creó una cuenta nueva.
 
-**Tu respuesta:** ___
+**Implicación técnica:**
+- El endpoint de creación de usuario dispara una notificación en el panel del SA.
+- Campo `notificaciones` en el dashboard con badge de conteo.
 
 ---
 
 ### SA-P2. ¿Cuántos ADMIN_UNIDAD puede haber por unidad?
 
-El ADMIN_UNIDAD puede designar otros admins en su unidad (ADR-002 P1=D).
+**Respuesta: D (con default = 1)**
 
-**Opciones:**
+El SUPERADMIN define el límite de ADMIN_UNIDAD al configurar cada unidad.
+Por defecto, el límite es **1** si no se especifica otro valor.
 
-| # | Límite |
-|---|--------|
-| A | Sin límite. Puede haber N administradores por unidad. |
-| B | Máximo 2 por unidad (titular + suplente). |
-| C | Solo 1. Si ya hay un ADMIN_UNIDAD activo, no puede designarse otro sin revocar al primero. |
-| D | El SUPERADMIN define el límite por unidad al configurarla. |
-
-**Tu respuesta:** ___
+**Implicación técnica:**
+- Campo `max_admin_unidad` (INT, default 1) en `adm_unidades_medicas`.
+- Validación al asignar rol ADMIN_UNIDAD: contar activos y comparar con el límite.
 
 ---
 
 ### SA-P3. ¿Puede el SUPERADMIN suspender/eliminar usuarios creados por un ADMIN_UNIDAD?
 
-**Opciones:**
+**Respuesta: C (con auditoría completa)**
 
-| # | Comportamiento |
-|---|---------------|
-| A | Sí, sin restricciones. El SUPERADMIN tiene autoridad sobre cualquier cuenta del sistema. |
-| B | Sí, pero debe registrar motivo y se notifica al ADMIN_UNIDAD que creó la cuenta. |
-| C | No puede eliminarlos directamente; solo puede revocar sus asignaciones. La cuenta queda inactiva pero el historial se preserva. |
+El SUPERADMIN solo puede **revocar asignaciones**, no eliminar la cuenta del
+usuario. La cuenta queda inactiva pero el historial se preserva para auditoría
+(cumplimiento NOM-024). Todo queda registrado en `sys_bitacora_auditoria`.
 
-**Tu respuesta:** ___
+**Implicación técnica:**
+- No existe endpoint DELETE sobre `adm_usuarios`.
+- Solo se permite `activo = FALSE` en la tabla y cierre lógico en `adm_usuario_unidad_rol`.
+- Bitácora obligatoria con motivo en cada revocación.
 
 ---
 
@@ -71,50 +64,41 @@ El ADMIN_UNIDAD puede designar otros admins en su unidad (ADR-002 P1=D).
 
 ### SA-P4. ¿Quién crea y mantiene los formularios GIIS del catálogo global?
 
-El ADMIN_UNIDAD solo adopta formularios ya existentes (ADR-002 P4). Alguien
-los tiene que crear primero.
+**Respuesta: C**
 
-**Opciones:**
+El SUPERADMIN puede **crear formularios GIIS** directamente en la UI Y también
+**importar** formularios desde archivos JSON/XML (estándar GIIS externo).
 
-| # | Comportamiento |
-|---|---------------|
-| A | Solo el SUPERADMIN crea y modifica formularios GIIS del catálogo global. |
-| B | El SUPERADMIN puede importar formularios desde un archivo JSON/XML (estándar GIIS externo). |
-| C | Ambas: el SUPERADMIN crea los propios y puede importar externos. |
-
-**Tu respuesta:** ___
+**Implicación técnica:**
+- Formulario de creación manual en la UI.
+- Endpoint de importación con validación de esquema JSON/XML.
 
 ---
 
 ### SA-P5. ¿Puede el SUPERADMIN marcar normativas GIIS como obligatorias para todas las unidades?
 
-Si hay una normativa que toda unidad DEBE reportar (ej: NOM-024 base), ¿puede
-forzarse para que el admin no la pueda desactivar?
+**Respuesta: B**
 
-**Opciones:**
+Sí. El SUPERADMIN puede marcar una normativa como `obligatoria = TRUE`.
+El ADMIN_UNIDAD la ve activa pero el control está deshabilitado — no puede desactivarla.
 
-| # | Comportamiento |
-|---|---------------|
-| A | No. Todas las normativas son opcionales; cada unidad adopta las que quiera. |
-| B | Sí. El SUPERADMIN puede marcar una normativa como `obligatoria = TRUE`. El admin la ve activa pero no puede desactivarla. |
-
-**Tu respuesta:** ___
+**Implicación técnica:**
+- Campo `obligatoria BOOLEAN DEFAULT FALSE` en `sys_normatividad_giis`.
+- El frontend del ADMIN_UNIDAD deshabilita el toggle si `obligatoria = TRUE`.
+- El backend rechaza cambios de estado en normativas obligatorias si el rol no es SUPERADMIN.
 
 ---
 
 ### SA-P6. ¿Puede el SUPERADMIN agregar nuevas especialidades/servicios al catálogo global?
 
-La tabla `cat_servicios_atencion` contiene los servicios disponibles del sistema.
+**Respuesta: C**
 
-**Opciones:**
+Puede gestionar el catálogo, pero los cambios requieren **confirmación extra** en la UI
+ya que afectan a todas las unidades del sistema.
 
-| # | Comportamiento |
-|---|---------------|
-| A | El catálogo de servicios es fijo (viene precargado con la BD). Nadie lo modifica en producción. |
-| B | Solo el SUPERADMIN puede agregar, editar o desactivar servicios del catálogo global. |
-| C | El SUPERADMIN puede gestionarlo, pero los cambios requieren una confirmación extra (porque afectan a todas las unidades). |
-
-**Tu respuesta:** ___
+**Implicación técnica:**
+- Modal de confirmación con resumen del impacto antes de confirmar cambios.
+- Bitácora obligatoria con campos afectados y actor.
 
 ---
 
@@ -122,25 +106,20 @@ La tabla `cat_servicios_atencion` contiene los servicios disponibles del sistema
 
 ### SA-P7. ¿Qué datos clínicos puede ver el SUPERADMIN?
 
-El SUPERADMIN tiene acceso global. ¿Hasta qué nivel llega ese acceso sobre
-expedientes clínicos?
+**Respuesta: C**
 
-**Opciones:**
+El SUPERADMIN tiene **acceso de lectura completo** a cualquier expediente de
+cualquier unidad. Todo acceso queda auditado en `sys_bitacora_auditoria`.
 
-| # | Comportamiento |
-|---|---------------|
-| A | El SUPERADMIN solo ve métricas agregadas por unidad. No puede abrir expedientes individuales. |
-| B | El SUPERADMIN puede ver la lista de pacientes de cualquier unidad, pero no el expediente clínico. |
-| C | El SUPERADMIN tiene acceso de lectura completo a cualquier expediente de cualquier unidad (igual que ADMIN_UNIDAD en su unidad). Todo queda auditado. |
-| D | El SUPERADMIN no tiene acceso clínico; ese nivel es solo operativo (médicos). Separación estricta de responsabilidades. |
-
-**Tu respuesta:** ___
+**Implicación técnica:**
+- El middleware de scope de unidad no aplica para SUPERADMIN.
+- Cada lectura de expediente genera entrada en bitácora con `accion = 'LECTURA_EXPEDIENTE'`.
 
 ---
 
 ### SA-P8. ¿Qué ve el SUPERADMIN en su dashboard principal?
 
-**Opciones (puedes elegir varias):**
+**Respuesta: A, B, C, D, E, F, G, H, I, J, K (todas)**
 
 | # | Métrica |
 |---|---------|
@@ -156,42 +135,38 @@ expedientes clínicos?
 | J | Comparativa mensual por unidad (tabla o gráfica) |
 | K | Estado de normativas GIIS: cuántas unidades han adoptado cada normativa |
 
-**Tu respuesta (ej: A, B, H):** ___
-
 ---
 
 ## Sección 4 — Gestión de Unidades
 
 ### SA-P9. ¿Qué pasa cuando el SUPERADMIN desactiva una unidad?
 
-Si una clínica cierra o se suspende temporalmente:
+**Respuesta: B**
 
-**Opciones:**
+Se desactiva con un **período de gracia configurable** (default: 24h) para que
+el ADMIN_UNIDAD notifique al personal. El sistema envía la alerta automáticamente.
+Al vencer el período, las sesiones activas se invalidan.
 
-| # | Comportamiento |
-|---|---------------|
-| A | Se desactiva la unidad y todos los usuarios de esa unidad pierden acceso inmediatamente. Sus sesiones activas se invalidan. |
-| B | Se desactiva la unidad con un período de gracia configurable (ej: 24h) para que el admin de la unidad notifique al personal. |
-| C | Solo se marca como inactiva. Los usuarios pueden seguir haciendo login pero aparece un aviso. El acceso se corta en una fecha programada. |
-
-**Tu respuesta:** ___
+**Implicación técnica:**
+- Campo `fecha_desactivacion_programada TIMESTAMPTZ` en `adm_unidades_medicas`.
+- Job/cron que invalida tokens cuando `NOW() >= fecha_desactivacion_programada`.
+- El período de gracia lo ingresa el SUPERADMIN al desactivar (default 24h).
 
 ---
 
 ### SA-P10. ¿Puede el SUPERADMIN transferir personal entre unidades?
 
-Si un médico pasa de una clínica a otra, ¿el SUPERADMIN puede mover la asignación
-o el ADMIN_UNIDAD de la unidad destino debe crear la nueva asignación?
+**Respuesta: C (con matiz)**
 
-**Opciones:**
+El SUPERADMIN puede hacer la transferencia completa con un solo formulario
+(revoca origen + crea destino + registra motivo en bitácora).
 
-| # | Comportamiento |
-|---|---------------|
-| A | El SUPERADMIN puede revocar la asignación en la unidad origen y crear la nueva en destino directamente. |
-| B | El proceso requiere dos acciones: el admin de la unidad origen revoca y el admin destino crea la nueva. El SUPERADMIN supervisa pero no actúa. |
-| C | El SUPERADMIN hace la transferencia completa con un solo formulario. Se registra el movimiento en bitácora con motivo. |
+**Matiz aprobado:** Cualquier ADMIN_UNIDAD también puede asignar a un usuario
+existente a su propia unidad si así lo requiere, sin necesidad del SUPERADMIN.
 
-**Tu respuesta:** ___
+**Implicación técnica:**
+- Formulario de transferencia del SUPERADMIN con selector origen/destino.
+- El ADMIN_UNIDAD solo gestiona asignaciones en su unidad (no ve las de otras).
 
 ---
 
@@ -199,34 +174,23 @@ o el ADMIN_UNIDAD de la unidad destino debe crear la nueva asignación?
 
 ### SA-P11. ¿Puede el SUPERADMIN "impersonar" a un usuario para depuración?
 
-Si un médico reporta un bug o un problema de acceso, ¿puede el SUPERADMIN
-ver el sistema desde su perspectiva?
+**Respuesta: A**
 
-**Opciones:**
-
-| # | Comportamiento |
-|---|---------------|
-| A | No. No existe impersonación. El SUPERADMIN debe reproducir el problema con una cuenta de prueba. |
-| B | Sí. El SUPERADMIN puede activar modo "ver como [usuario]" con acceso de solo lectura. Queda registrado en bitácora con `accion = 'IMPERSONACION'`. |
-
-**Tu respuesta:** ___
+No existe impersonación. El SUPERADMIN debe usar **cuentas de prueba** para
+reproducir problemas. No se implementa esta función.
 
 ---
 
-### SA-P12. ¿Cómo funciona la "vista cruzada" que el SUPERADMIN puede delegar? (ADR-002 P12=B)
+### SA-P12. ¿Cómo funciona la "vista cruzada" que el SUPERADMIN puede delegar?
 
-Si el SUPERADMIN le otorga a un ADMIN_UNIDAD permiso para ver datos de otra unidad:
+**Respuesta: D**
 
-**Opciones:**
+El SUPERADMIN define **caso por caso** qué puede ver el ADMIN_UNIDAD al que
+se le otorga vista cruzada: métricas / lista de pacientes / expedientes completos.
 
-| # | Alcance de la vista cruzada |
-|---|---------------------------|
-| A | Solo métricas agregadas de la otra unidad (sin datos personales ni expedientes). |
-| B | Lista de pacientes de la otra unidad (sin expediente clínico). |
-| C | Acceso de lectura igual al que tiene en su propia unidad (incluyendo expedientes). |
-| D | El SUPERADMIN define caso por caso qué puede ver: elige entre métricas / lista pacientes / expedientes. |
-
-**Tu respuesta:** ___
+**Implicación técnica:**
+- Tabla o columna JSONB en `adm_usuario_unidad_rol` para permisos de vista cruzada.
+- El middleware lee esos permisos al resolver requests entre unidades.
 
 ---
 
@@ -234,59 +198,133 @@ Si el SUPERADMIN le otorga a un ADMIN_UNIDAD permiso para ver datos de otra unid
 
 ### SA-P13. ¿Cómo se gestionan las cuentas del propio SUPERADMIN?
 
-Si hay múltiples superadmins o si uno se va de la organización:
+**Respuesta: A (con extensión)**
 
-**Opciones:**
+Solo puede haber **1 SUPERADMIN activo** en el sistema. El sistema lo valida.
 
-| # | Comportamiento |
-|---|---------------|
-| A | Solo puede haber 1 SUPERADMIN activo. El sistema lo valida. |
-| B | Puede haber N SUPERADMINs. Cualquiera de ellos puede gestionar a los demás (incluyendo revocar acceso). |
-| C | Puede haber N, pero la primera cuenta SUPERADMIN creada (la "raíz") no puede ser revocada por otros SUPERADMINs, solo desde la BD directamente. |
+**Extensión aprobada:** Si se requiere que otros usuarios vean información global
+sin ser ADMIN_UNIDAD, se podrán crear roles especiales de solo lectura global,
+pero sin los poderes de administración del SUPERADMIN.
 
-**Tu respuesta:** ___
-
----
-
-### SA-P14. ¿El SUPERADMIN puede exportar/respaldar datos desde la UI?
-
-Para cumplimiento NOM-024 y auditorías:
-
-**Opciones:**
-
-| # | Comportamiento |
-|---|---------------|
-| A | No. Los respaldos se hacen solo a nivel de BD (pg_dump). La UI no exporta datos. |
-| B | Sí, puede exportar reportes en PDF o CSV (bitácora, lista de pacientes por unidad, personal, etc.). |
-| C | Sí, exporta reportes Y puede generar un dump de la BD desde la UI (zip con SQL). |
-
-**Tu respuesta:** ___
+**Implicación técnica:**
+- Validación en backend: al crear/activar SUPERADMIN, verificar que no existe otro activo.
+- Posible rol futuro `AUDITOR_GLOBAL` con acceso de lectura sin capacidad de mutación.
 
 ---
 
-## Resumen de Preguntas
+### SA-P14. ¿Puede el SUPERADMIN exportar/respaldar datos desde la UI?
 
-| # | Tema | Respondida |
-|---|------|-----------|
-| SA-P1 | ¿Cuentas de ADMIN_UNIDAD se activan sin aprobación? | ⬜ |
-| SA-P2 | ¿Cuántos ADMIN_UNIDAD por unidad? | ⬜ |
-| SA-P3 | ¿SUPERADMIN puede suspender cuentas creadas por admin? | ⬜ |
-| SA-P4 | ¿Quién crea los formularios GIIS globales? | ⬜ |
-| SA-P5 | ¿Puede marcar normativas como obligatorias? | ⬜ |
-| SA-P6 | ¿Puede gestionar catálogo de servicios global? | ⬜ |
-| SA-P7 | ¿Qué acceso clínico tiene el SUPERADMIN? | ⬜ |
-| SA-P8 | ¿Qué métricas en el dashboard del SUPERADMIN? | ⬜ |
-| SA-P9 | ¿Qué pasa al desactivar una unidad? | ⬜ |
-| SA-P10 | ¿Puede transferir personal entre unidades? | ⬜ |
-| SA-P11 | ¿Puede impersonar usuarios para depuración? | ⬜ |
-| SA-P12 | ¿Alcance de la vista cruzada delegada? | ⬜ |
-| SA-P13 | ¿Cómo se gestiona la propia cuenta SUPERADMIN? | ⬜ |
-| SA-P14 | ¿Puede exportar datos desde la UI? | ⬜ |
+**Respuesta: C**
+
+Sí. El SUPERADMIN puede:
+1. Exportar reportes en **PDF o CSV** (bitácora, lista de pacientes, personal, etc.)
+2. Generar un **dump de la BD** desde la UI (zip con SQL vía pg_dump).
+
+**Implicación técnica:**
+- Endpoint que ejecuta `pg_dump` y sirve el archivo como descarga.
+- Reportes PDF con pdfkit / CSV directo desde queries de la BD.
+- Acceso estrictamente restringido a SUPERADMIN.
+
+---
+
+## Sección 7 — UI y Navegación del SUPERADMIN (definición adicional)
+
+### Estructura de navegación fija (4 secciones principales)
+
+El panel del SUPERADMIN tiene **4 secciones fijas en el sidebar principal**,
+siempre visibles. Las demás opciones derivadas del cuestionario se listan
+debajo de estas 4.
+
+| # | Sección | Descripción |
+|---|---------|-------------|
+| 1 | **Dashboard General** | Todas las métricas de SA-P8 (A–K). Mapa Leaflet central. |
+| 2 | **Unidades Médicas** | Alta y desactivación de unidades. |
+| 3 | **Usuarios** | Alta de usuarios y asignación de roles/unidades. |
+| 4 | **Catálogos & GIIS** | Gestión de catálogos globales y formularios GIIS. |
+
+---
+
+### Detalle: Sección 2 — Unidades Médicas
+
+- **Lista:** Solo muestra unidades que **ya han sido habilitadas** (activas).
+- **Botón "Habilitar unidad":** Abre un catálogo con búsqueda por CLUES o nombre.
+  - Muestra info de la unidad (nombre, CLUES, municipio, tipo) antes de confirmar.
+  - Modal de confirmación con resumen antes de habilitar.
+- **Botón "Desactivar":** Configura período de gracia + confirmación con motivo.
+- **Detalle de unidad:** Al hacer clic en una unidad activa, acceso a su configuración
+  (límite de ADMIN_UNIDAD, normativas, servicios adoptados, personal asignado).
+
+---
+
+### Detalle: Sección 3 — Usuarios
+
+- **Lista de usuarios:** Filtros por rol, unidad, estado (activo/inactivo).
+- **Alta de usuario:** Sigue las reglas NOM-024 para prestadores de salud:
+  - CURP obligatorio y validado.
+  - RFC opcional.
+  - Cédula profesional (para roles MEDICO, ENFERMERA).
+  - Email institucional.
+  - Contraseña temporal que el usuario debe cambiar en primer login.
+- **Asignación de roles:** Se puede asignar el usuario a **una o más unidades**
+  habilitadas, con un rol diferente en cada una.
+- **Solo unidades habilitadas** aparecen en el selector de asignación.
+
+---
+
+### Detalle: Sección 4 — Catálogos & GIIS
+
+- **Sub-sección GIIS:**
+  - Lista de normativas GIIS activas del sistema con indicador de adopción por unidad.
+  - Botón "Nueva GIIS": formulario de creación manual.
+  - Botón "Importar GIIS": carga de JSON/XML con validación de esquema.
+  - Toggle de `obligatoria` por normativa.
+- **Sub-sección Catálogos:**
+  - Lista de catálogos maestros activos (cat_*, gui_*).
+  - Catálogos que NO dependen de GIIS ni de Excel externo son editables en UI.
+  - Catálogos que SÍ dependen de importación (CIE-10, SEPOMEX) muestran
+    la fecha de última carga y botón de reimportación.
+  - Gestión de `cat_servicios_atencion` con modal de confirmación extra.
+
+---
+
+### Secciones adicionales (derivadas del cuestionario, listadas bajo las 4 fijas)
+
+| Sección | Origen |
+|---------|--------|
+| Transferencia de personal entre unidades | SA-P10 |
+| Vista cruzada delegada a ADMIN_UNIDAD | SA-P12 |
+| Exportación y respaldos | SA-P14 |
+| Bitácora global de auditoría | SA-P8-I |
+| Alertas de seguridad | SA-P8-G |
+
+---
+
+## Resumen de Decisiones
+
+| # | Tema | Decisión |
+|---|------|----------|
+| SA-P1 | Activación de cuentas por ADMIN_UNIDAD | B — Activa inmediata + notificación al SA |
+| SA-P2 | Límite de ADMIN_UNIDAD por unidad | D — SA lo define; default = 1 |
+| SA-P3 | SA suspende cuentas del admin | C — Solo revoca asignaciones; historial preservado |
+| SA-P4 | Creación de formularios GIIS | C — Crea propios e importa externos |
+| SA-P5 | Normativas obligatorias | B — SA puede marcar `obligatoria = TRUE` |
+| SA-P6 | Catálogo de servicios global | C — Sí, con confirmación extra |
+| SA-P7 | Acceso clínico del SA | C — Lectura completa, todo auditado |
+| SA-P8 | Dashboard del SA | A,B,C,D,E,F,G,H,I,J,K — Todas las métricas |
+| SA-P9 | Desactivación de unidad | B — Período de gracia configurable (default 24h) |
+| SA-P10 | Transferencia de personal | C — Un formulario + cualquier admin puede asignar en su unidad |
+| SA-P11 | Impersonación | A — No existe |
+| SA-P12 | Alcance de vista cruzada delegada | D — SA define caso por caso |
+| SA-P13 | Gestión de cuentas SUPERADMIN | A — Solo 1 activo; posible rol AUDITOR_GLOBAL futuro |
+| SA-P14 | Exportación desde UI | C — Reportes PDF/CSV + dump de BD |
 
 ---
 
 ## Próximos pasos
 
-Una vez respondidas, este documento pasa a **✅ APROBADO** y se actualiza
-el módulo de SUPERADMIN (Fase 1) con los ajustes pendientes antes de
-iniciar Fase 2.
+- [x] ADR-003 aprobado y documentado
+- [ ] Migrar cambios de esquema derivados (campos nuevos en tablas)
+- [ ] Implementar navegación fija de 4 secciones en frontend
+- [ ] Implementar módulo Unidades con CLUES lookup
+- [ ] Implementar módulo Usuarios con validación NOM-024
+- [ ] Implementar módulo Catálogos & GIIS
