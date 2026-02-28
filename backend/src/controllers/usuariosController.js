@@ -6,6 +6,7 @@ const SALT_ROUNDS = 12
 
 /**
  * GET /api/admin/usuarios
+ * Lista usuarios con sus asignaciones activas agregadas.
  */
 export async function listar(req, res) {
   const page   = Math.max(1, parseInt(req.query.page) || 1)
@@ -19,11 +20,31 @@ export async function listar(req, res) {
        u.intentos_fallidos, u.bloqueado_hasta,
        r.id AS rol_id, r.clave AS rol_clave, r.nombre AS rol_nombre,
        p.id AS personal_id, p.nombre_completo,
+       -- Asignaciones activas como array JSON
+       COALESCE(
+         json_agg(
+           json_build_object(
+             'asignacion_id',    a.id,
+             'unidad_medica_id', a.unidad_medica_id,
+             'unidad_nombre',    um.nombre,
+             'rol_clave',        ra.clave,
+             'rol_nombre',       ra.nombre
+           )
+         ) FILTER (WHERE a.id IS NOT NULL),
+         '[]'
+       ) AS asignaciones,
        COUNT(*) OVER() AS total
      FROM adm_usuarios u
-     LEFT JOIN cat_roles r ON u.rol_id = r.id
-     LEFT JOIN adm_personal_salud p ON p.usuario_id = u.id
+     LEFT JOIN cat_roles r                ON u.rol_id = r.id
+     LEFT JOIN adm_personal_salud p       ON p.usuario_id = u.id
+     LEFT JOIN adm_usuario_unidad_rol a   ON a.usuario_id = u.id AND a.activo = TRUE
+     LEFT JOIN adm_unidades_medicas um    ON a.unidad_medica_id = um.id
+     LEFT JOIN cat_roles ra               ON a.rol_id = ra.id
      WHERE ($1 = '' OR u.email ILIKE $2 OR UPPER(u.curp) ILIKE $2 OR p.nombre_completo ILIKE $2)
+     GROUP BY u.id, u.curp, u.email, u.activo, u.ultimo_acceso,
+              u.intentos_fallidos, u.bloqueado_hasta,
+              r.id, r.clave, r.nombre,
+              p.id, p.nombre_completo
      ORDER BY u.email
      LIMIT $3 OFFSET $4`,
     [search, `%${search}%`, limit, offset]
@@ -45,14 +66,34 @@ export async function obtener(req, res) {
        u.id, u.curp, u.email, u.activo, u.ultimo_acceso,
        u.intentos_fallidos, u.bloqueado_hasta,
        r.id AS rol_id, r.clave AS rol_clave, r.nombre AS rol_nombre,
-       p.id AS personal_id, p.nombre_completo, p.cedula_profesional,
-       p.unidad_medica_id, p.tipo_personal_id,
-       um.nombre AS unidad_nombre, um.clues
+       p.id AS personal_id, p.nombre_completo, p.cedula_profesional, p.tipo_personal_id,
+       COALESCE(
+         json_agg(
+           json_build_object(
+             'asignacion_id',    a.id,
+             'unidad_medica_id', a.unidad_medica_id,
+             'unidad_nombre',    um.nombre,
+             'clues',            um.clues,
+             'rol_id',           a.rol_id,
+             'rol_clave',        ra.clave,
+             'rol_nombre',       ra.nombre,
+             'fecha_inicio',     a.fecha_inicio,
+             'activo',           a.activo
+           )
+         ) FILTER (WHERE a.id IS NOT NULL),
+         '[]'
+       ) AS asignaciones
      FROM adm_usuarios u
-     LEFT JOIN cat_roles r ON u.rol_id = r.id
-     LEFT JOIN adm_personal_salud p ON p.usuario_id = u.id
-     LEFT JOIN adm_unidades_medicas um ON p.unidad_medica_id = um.id
-     WHERE u.id = $1`,
+     LEFT JOIN cat_roles r                ON u.rol_id = r.id
+     LEFT JOIN adm_personal_salud p       ON p.usuario_id = u.id
+     LEFT JOIN adm_usuario_unidad_rol a   ON a.usuario_id = u.id AND a.activo = TRUE
+     LEFT JOIN adm_unidades_medicas um    ON a.unidad_medica_id = um.id
+     LEFT JOIN cat_roles ra               ON a.rol_id = ra.id
+     WHERE u.id = $1
+     GROUP BY u.id, u.curp, u.email, u.activo, u.ultimo_acceso,
+              u.intentos_fallidos, u.bloqueado_hasta,
+              r.id, r.clave, r.nombre,
+              p.id, p.nombre_completo, p.cedula_profesional, p.tipo_personal_id`,
     [req.params.id]
   )
   if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
@@ -61,13 +102,14 @@ export async function obtener(req, res) {
 
 /**
  * POST /api/admin/usuarios
- * Crea usuario y opcionalmente su registro de personal_salud.
+ * Crea usuario y, opcionalmente, su perfil de personal de salud.
+ * Las asignaciones a unidades se crean por separado.
  */
 export async function crear(req, res) {
   const {
     curp, email, password, rol_id,
-    // Datos de personal (solo para roles operativos)
-    nombre_completo, unidad_medica_id, tipo_personal_id, cedula_profesional,
+    // Datos de perfil profesional (opcionales)
+    nombre_completo, tipo_personal_id, cedula_profesional,
   } = req.body
 
   if (!curp || !email || !password || !rol_id) {
@@ -78,7 +120,6 @@ export async function crear(req, res) {
     return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' })
   }
 
-  // Verificar unicidad
   const dup = await pool.query(
     'SELECT id FROM adm_usuarios WHERE LOWER(email) = LOWER($1) OR UPPER(curp) = UPPER($2)',
     [email, curp]
@@ -101,14 +142,13 @@ export async function crear(req, res) {
     )
     const usuario = rows[0]
 
-    // Crear personal_salud si se proporcionan datos
+    // Crear perfil profesional si se proporcionan datos
     if (nombre_completo) {
       await client.query(
         `INSERT INTO adm_personal_salud
-           (usuario_id, nombre_completo, unidad_medica_id, tipo_personal_id, cedula_profesional)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [usuario.id, nombre_completo, unidad_medica_id || null,
-         tipo_personal_id || null, cedula_profesional || null]
+           (usuario_id, nombre_completo, tipo_personal_id, cedula_profesional)
+         VALUES ($1, $2, $3, $4)`,
+        [usuario.id, nombre_completo, tipo_personal_id || null, cedula_profesional || null]
       )
     }
 
@@ -141,7 +181,6 @@ export async function actualizar(req, res) {
   const { id } = req.params
   const { email, rol_id, activo } = req.body
 
-  // No permitir auto-edición del propio rol/activo (protección básica)
   if (id === req.user.sub && activo === false) {
     return res.status(400).json({ error: 'No puede desactivar su propio usuario' })
   }
