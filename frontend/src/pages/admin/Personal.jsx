@@ -23,11 +23,6 @@ export default function Personal() {
     queryFn: () => catalogosApi.getTiposPersonal(),
   })
 
-  const { data: unidadesData } = useQuery({
-    queryKey: ['unidades-lista'],
-    queryFn: () => adminApi.getUnidades({ limit: 500 }),
-  })
-
   const { data: usuariosData } = useQuery({
     queryKey: ['usuarios-lista'],
     queryFn: () => adminApi.getUsuarios({ limit: 500 }),
@@ -57,7 +52,6 @@ export default function Personal() {
     reset({
       nombre_completo: row.nombre_completo,
       tipo_personal_id: row.tipo_personal_id,
-      unidad_medica_id: row.unidad_medica_id,
       cedula_profesional: row.cedula_profesional,
     })
     setModal('editar')
@@ -86,11 +80,23 @@ export default function Personal() {
     },
     { key: 'tipo_personal', label: 'Tipo de personal' },
     {
-      key: 'unidad',
-      label: 'Unidad médica',
-      render: (row) => row.unidad_nombre
-        ? <><p className="text-sm">{row.unidad_nombre}</p><p className="text-xs text-gray-400">{row.clues}</p></>
-        : <span className="text-gray-400 text-xs">Sin asignar</span>,
+      key: 'asignaciones',
+      label: 'Unidades asignadas',
+      render: (row) => {
+        const lista = row.asignaciones ?? []
+        if (lista.length === 0) return <span className="text-gray-400 text-xs">Sin asignar</span>
+        return (
+          <div className="space-y-0.5">
+            {lista.slice(0, 2).map((a, i) => (
+              <p key={i} className="text-xs text-gray-600">
+                <span className="font-medium">{a.unidad_nombre}</span>
+                <span className="text-gray-400"> · {a.rol_clave}</span>
+              </p>
+            ))}
+            {lista.length > 2 && <p className="text-xs text-gray-400">+{lista.length - 2} más</p>}
+          </div>
+        )
+      },
     },
     {
       key: 'usuario',
@@ -99,9 +105,6 @@ export default function Personal() {
         ? <><p className="text-xs">{row.email}</p><span className={`text-xs ${row.usuario_activo ? 'text-green-600' : 'text-red-500'}`}>{row.usuario_activo ? '● Activo' : '● Inactivo'}</span></>
         : <span className="text-gray-400 text-xs">Sin usuario</span>,
     },
-    { key: 'rol_clave', label: 'Rol', render: (row) => row.rol_clave
-      ? <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs">{row.rol_clave}</span>
-      : '—' },
   ]
 
   const FormModal = (
@@ -132,15 +135,6 @@ export default function Personal() {
           <input {...register('cedula_profesional')}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
             placeholder="Opcional" />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Unidad médica</label>
-          <select {...register('unidad_medica_id')}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white">
-            <option value="">Sin asignar</option>
-            {(unidadesData?.data ?? []).map(u => <option key={u.id} value={u.id}>{u.nombre} ({u.clues})</option>)}
-          </select>
         </div>
 
         {modal === 'crear' && (

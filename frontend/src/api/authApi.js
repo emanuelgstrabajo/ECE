@@ -6,6 +6,21 @@ export async function apiLogin(identificador, password) {
   return data
 }
 
+/**
+ * Segunda etapa del login multi-unidad.
+ * Se llama cuando el servidor devolvió requires_unit_selection: true.
+ * @param {string} asignacion_id  UUID de la asignación seleccionada
+ * @param {string} preToken       Token temporal de selección (5 min)
+ */
+export async function apiSeleccionarUnidad(asignacion_id, preToken) {
+  const { data } = await axiosClient.post(
+    '/auth/seleccionar-unidad',
+    { asignacion_id },
+    { headers: { Authorization: `Bearer ${preToken}` } }
+  )
+  return data
+}
+
 export async function apiRefresh() {
   // Usa axios directo para no activar el interceptor de refresh nuevamente
   const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true })
