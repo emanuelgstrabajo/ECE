@@ -25,6 +25,14 @@ export const adminApi = {
   updatePersonal: (id, body) => axiosClient.put(`/admin/personal/${id}`, body).then(r => r.data),
   deletePersonal: (id) => axiosClient.delete(`/admin/personal/${id}`).then(r => r.data),
 
+  // Asignaciones usuario ↔ unidad ↔ rol
+  getAsignaciones: (usuario_id, params) =>
+    axiosClient.get(`/admin/usuarios/${usuario_id}/asignaciones`, { params }).then(r => r.data),
+  crearAsignacion: (usuario_id, body) =>
+    axiosClient.post(`/admin/usuarios/${usuario_id}/asignaciones`, body).then(r => r.data),
+  revocarAsignacion: (usuario_id, asig_id, body) =>
+    axiosClient.delete(`/admin/usuarios/${usuario_id}/asignaciones/${asig_id}`, { data: body }).then(r => r.data),
+
   // Bitácora
   getBitacora: (params) => axiosClient.get('/admin/bitacora', { params }).then(r => r.data),
 }
