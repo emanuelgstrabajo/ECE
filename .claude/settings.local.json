@@ -19,7 +19,12 @@
       "Bash(git init)",
       "Bash(git config user.email \"admin@eceglobal.mx\")",
       "Bash(git config user.name \"ECE Global Dev\")",
-      "Bash(git add .)"
+      "Bash(git add .)",
+      "Bash(git commit:*)",
+      "Bash(git remote add origin https://github.com/emanuelgstrabajo/ECE.git)",
+      "Bash(git push -u origin master --tags)",
+      "Bash(git add .claude/settings.local.json)",
+      "Bash(git push)"
     ]
   }
 }
