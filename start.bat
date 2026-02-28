@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM ============================================================
 REM SIRES — Script de arranque rapido (Windows)
 REM Uso: Doble clic o ejecutar en CMD desde la carpeta del proyecto
@@ -47,7 +48,7 @@ IF "%MIGRATED%"=="t" (
     echo   ATENCION: Migracion 001 pendiente.
     echo.
     set /p RUN_MIGRATION="  Ejecutar migracion ahora? (S/N): "
-    IF /I "%RUN_MIGRATION%"=="S" (
+    IF /I "!RUN_MIGRATION!"=="S" (
         echo   Aplicando migracion 001...
         set PGPASSWORD=postgres
         psql -h 127.0.0.1 -U postgres -d ece_global -f "%MIGRATION_FILE%" -q
