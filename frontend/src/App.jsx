@@ -3,10 +3,17 @@ import { useAuth } from './context/AuthContext.jsx'
 import AppLayout from './components/Layout/AppLayout.jsx'
 import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
-import Unidades from './pages/admin/Unidades.jsx'
-import Usuarios from './pages/admin/Usuarios.jsx'
-import Personal from './pages/admin/Personal.jsx'
-import Bitacora from './pages/admin/Bitacora.jsx'
+
+// SuperAdmin — 4 secciones fijas
+import DashboardSuperAdmin from './pages/admin/DashboardSuperAdmin.jsx'
+import Unidades            from './pages/admin/Unidades.jsx'
+import Usuarios            from './pages/admin/Usuarios.jsx'
+import Catalogos           from './pages/admin/Catalogos.jsx'
+
+// SuperAdmin — secciones adicionales
+import Personal  from './pages/admin/Personal.jsx'
+import Bitacora  from './pages/admin/Bitacora.jsx'
+
 // Fase 2 — Admin de Unidad
 import DashboardUnidad  from './pages/adminUnidad/DashboardUnidad.jsx'
 import PersonalUnidad   from './pages/adminUnidad/PersonalUnidad.jsx'
@@ -50,9 +57,13 @@ export default function App() {
       <Route element={<RutaProtegida><AppLayout /></RutaProtegida>}>
         <Route path="/dashboard" element={<Dashboard />} />
 
-        {/* SuperAdmin */}
-        <Route path="/admin/unidades" element={<RutaProtegida roles={['SUPERADMIN']}><Unidades /></RutaProtegida>} />
-        <Route path="/admin/usuarios" element={<RutaProtegida roles={['SUPERADMIN']}><Usuarios /></RutaProtegida>} />
+        {/* SuperAdmin — 4 secciones fijas */}
+        <Route path="/admin/dashboard" element={<RutaProtegida roles={['SUPERADMIN']}><DashboardSuperAdmin /></RutaProtegida>} />
+        <Route path="/admin/unidades"  element={<RutaProtegida roles={['SUPERADMIN']}><Unidades /></RutaProtegida>} />
+        <Route path="/admin/usuarios"  element={<RutaProtegida roles={['SUPERADMIN']}><Usuarios /></RutaProtegida>} />
+        <Route path="/admin/catalogos" element={<RutaProtegida roles={['SUPERADMIN']}><Catalogos /></RutaProtegida>} />
+
+        {/* SuperAdmin — secciones adicionales */}
         <Route path="/admin/personal" element={<RutaProtegida roles={['SUPERADMIN']}><Personal /></RutaProtegida>} />
         <Route path="/admin/bitacora" element={<RutaProtegida roles={['SUPERADMIN']}><Bitacora /></RutaProtegida>} />
 
@@ -64,6 +75,7 @@ export default function App() {
         <Route path="/admin-unidad/bitacora"   element={<RutaProtegida roles={['ADMIN_UNIDAD']}><BitacoraUnidad /></RutaProtegida>} />
       </Route>
 
+      {/* Redirección por defecto */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )
