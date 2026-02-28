@@ -19,6 +19,7 @@ SET BACKEND_DIR=%ROOT_DIR%backend
 SET FRONTEND_DIR=%ROOT_DIR%frontend
 SET MIGRATION_FILE=%ROOT_DIR%docs\migrations\001_multi_unidad.sql
 SET LOG_DIR=%ROOT_DIR%.logs
+SET PGPASSWORD=postgres
 
 IF NOT EXIST "%LOG_DIR%" mkdir "%LOG_DIR%"
 
@@ -50,7 +51,6 @@ IF "%MIGRATED%"=="t" (
     set /p RUN_MIGRATION="  Ejecutar migracion ahora? (S/N): "
     IF /I "!RUN_MIGRATION!"=="S" (
         echo   Aplicando migracion 001...
-        set PGPASSWORD=postgres
         psql -h 127.0.0.1 -U postgres -d ece_global -f "%MIGRATION_FILE%" -q
         IF ERRORLEVEL 1 (
             echo   ERROR al aplicar migracion. Revisa el archivo SQL.
