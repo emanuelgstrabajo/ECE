@@ -202,4 +202,25 @@ pg_dump -U postgres ece_global > docs/backups/backup_checkpoint_fase_N.sql
 
 - [x] Base de datos diseñada y con catálogos cargados
 - [x] Roadmap de 4 fases definido
-- [ ] **EN PROGRESO: Fase 1 — Infraestructura y Superadministrador**
+- [x] **Fase 1A** — Docker + Express + React/Vite + JWT + CRUD unidades
+- [x] **Fase 1B** — Gestión de usuarios, personal, bitácora, catálogos
+- [x] **ADR-001** — Esquema multi-unidad aprobado e implementado
+  - Nueva tabla: `adm_usuario_unidad_rol` (N:M con historial)
+  - Login con selector de unidad cuando hay múltiples asignaciones
+  - Refresh token restaura contexto de unidad
+  - CRUD de asignaciones con cierre lógico (NOM-024)
+  - Middleware `requireUnidad` listo para Fase 2
+- [ ] **PENDIENTE: Ejecutar migración DB** → `docs/migrations/001_multi_unidad.sql`
+- [ ] **SIGUIENTE: Fase 2 — Administrador de Unidad**
+
+## Migraciones Pendientes de Ejecutar
+
+```bash
+# 1. Backup previo (SIEMPRE antes de migrar)
+pg_dump -U postgres ece_global > docs/backups/pre-migration-multi-unidad_$(date +%Y%m%d_%H%M).sql
+
+# 2. Ejecutar migración
+psql -U postgres -d ece_global -f docs/migrations/001_multi_unidad.sql
+```
+
+Ver `docs/migrations/001_multi_unidad.sql` para detalles completos.
