@@ -47,7 +47,8 @@ export default function Sidebar() {
     navigate('/login', { replace: true })
   }
 
-  const esSuperAdmin = usuario?.rol === 'SUPERADMIN'
+  const esSuperAdmin  = usuario?.rol === 'SUPERADMIN'
+  const esAdminUnidad = usuario?.rol === 'ADMIN_UNIDAD'
 
   return (
     <aside className="w-60 bg-white border-r border-gray-200 flex flex-col h-full">
@@ -74,15 +75,30 @@ export default function Sidebar() {
           icon={iconos.dashboard}
         />
 
+        {/* SuperAdmin */}
         {esSuperAdmin && (
           <>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">
-              Administración
+              Superadministración
             </p>
             <SidebarLink to="/admin/unidades" label="Unidades Médicas" icon={iconos.unidades} />
             <SidebarLink to="/admin/usuarios" label="Usuarios del Sistema" icon={iconos.usuarios} />
             <SidebarLink to="/admin/personal" label="Personal de Salud" icon={iconos.personal} />
             <SidebarLink to="/admin/bitacora" label="Bitácora NOM-024" icon={iconos.bitacora} />
+          </>
+        )}
+
+        {/* Admin de Unidad — Fase 2 */}
+        {esAdminUnidad && (
+          <>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">
+              Mi Unidad
+            </p>
+            <SidebarLink to="/admin-unidad/dashboard"  label="Dashboard"  icon={iconos.dashboard} />
+            <SidebarLink to="/admin-unidad/personal"   label="Personal"   icon={iconos.personal} />
+            <SidebarLink to="/admin-unidad/servicios"  label="Servicios"  icon={iconos.unidades} />
+            <SidebarLink to="/admin-unidad/normativas" label="Normativas" icon={iconos.bitacora} />
+            <SidebarLink to="/admin-unidad/bitacora"   label="Bitácora"   icon={iconos.bitacora} />
           </>
         )}
       </nav>
