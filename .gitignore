@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large binary/data files — excluded from git (store separately)
+Arranque/docs/GIIS/
+Arranque/docs/GIIS/catalogos/
+Arranque/RESPALDOS/SIRES_FULL_ESTRUCTURA_Y_CATALOGOS_2026.sql
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# Coverage
+coverage/
