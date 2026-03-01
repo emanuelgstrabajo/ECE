@@ -108,8 +108,11 @@ export async function obtener(req, res) {
 export async function crear(req, res) {
   const {
     curp, email, password, rol_id,
-    // Datos de perfil profesional (opcionales)
-    nombre_completo, tipo_personal_id, cedula_profesional,
+    // Datos de perfil profesional — campos desglosados (Fase 2+)
+    primer_nombre, segundo_nombre, apellido_paterno, apellido_materno,
+    tipo_personal_id, cedula_profesional,
+    // Compatibilidad legacy: si se manda nombre_completo directamente
+    nombre_completo: nombre_completo_directo,
   } = req.body
 
   if (!curp || !email || !password || !rol_id) {
@@ -128,6 +131,10 @@ export async function crear(req, res) {
     return res.status(409).json({ error: 'Ya existe un usuario con ese email o CURP' })
   }
 
+  // Calcular nombre_completo a partir de partes o usar el directo
+  const partes = [apellido_paterno, apellido_materno, primer_nombre, segundo_nombre].filter(Boolean)
+  const nombre_completo = partes.length > 0 ? partes.join(' ') : nombre_completo_directo || null
+
   const password_hash = await bcrypt.hash(password, SALT_ROUNDS)
 
   const client = await pool.connect()
@@ -142,13 +149,19 @@ export async function crear(req, res) {
     )
     const usuario = rows[0]
 
-    // Crear perfil profesional si se proporcionan datos
+    // Crear perfil profesional si se proporcionan datos de nombre
     if (nombre_completo) {
       await client.query(
         `INSERT INTO adm_personal_salud
-           (usuario_id, nombre_completo, tipo_personal_id, cedula_profesional)
-         VALUES ($1, $2, $3, $4)`,
-        [usuario.id, nombre_completo, tipo_personal_id || null, cedula_profesional || null]
+           (usuario_id, nombre_completo, primer_nombre, segundo_nombre,
+            apellido_paterno, apellido_materno, tipo_personal_id, cedula_profesional)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          usuario.id, nombre_completo,
+          primer_nombre || null, segundo_nombre || null,
+          apellido_paterno || null, apellido_materno || null,
+          tipo_personal_id || null, cedula_profesional || null,
+        ]
       )
     }
 
