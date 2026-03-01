@@ -50,8 +50,11 @@ export default function Personal() {
   function abrirEditar(row) {
     setSeleccionado(row)
     reset({
-      nombre_completo: row.nombre_completo,
-      tipo_personal_id: row.tipo_personal_id,
+      primer_nombre:     row.primer_nombre,
+      segundo_nombre:    row.segundo_nombre,
+      apellido_paterno:  row.apellido_paterno,
+      apellido_materno:  row.apellido_materno,
+      tipo_personal_id:  row.tipo_personal_id,
       cedula_profesional: row.cedula_profesional,
     })
     setModal('editar')
@@ -112,12 +115,35 @@ export default function Personal() {
       {errorMsg && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{errorMsg}</div>}
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo *</label>
-          <input {...register('nombre_completo', { required: 'Requerido' })}
+        {/* Nombres — NOM-024-SSA3-2010 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Apellido paterno *</label>
+          <input {...register('apellido_paterno', { required: 'Requerido' })}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-            placeholder="Nombre completo del profesional" />
-          {errors.nombre_completo && <p className="text-red-500 text-xs mt-1">{errors.nombre_completo.message}</p>}
+            placeholder="García" />
+          {errors.apellido_paterno && <p className="text-red-500 text-xs mt-1">{errors.apellido_paterno.message}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Apellido materno</label>
+          <input {...register('apellido_materno')}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            placeholder="López (opcional)" />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre(s) *</label>
+          <input {...register('primer_nombre', { required: 'Requerido' })}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            placeholder="Carlos" />
+          {errors.primer_nombre && <p className="text-red-500 text-xs mt-1">{errors.primer_nombre.message}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Segundo nombre</label>
+          <input {...register('segundo_nombre')}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            placeholder="Miguel (opcional)" />
         </div>
 
         <div>

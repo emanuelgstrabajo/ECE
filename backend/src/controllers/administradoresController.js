@@ -20,6 +20,10 @@ export async function listar(req, res) {
        u.email,
        u.curp,
        u.activo        AS usuario_activo,
+       p.primer_nombre,
+       p.segundo_nombre,
+       p.apellido_paterno,
+       p.apellido_materno,
        p.nombre_completo,
        p.cedula_profesional,
        a.fecha_inicio,
@@ -30,7 +34,7 @@ export async function listar(req, res) {
      LEFT JOIN adm_personal_salud p ON p.usuario_id = u.id
      WHERE a.unidad_medica_id = $1
        AND a.activo = TRUE
-     ORDER BY COALESCE(p.nombre_completo, u.email)`,
+     ORDER BY COALESCE(p.apellido_paterno, u.email), p.primer_nombre`,
     [id]
   )
 
@@ -42,7 +46,7 @@ export async function listar(req, res) {
  * Crea un usuario nuevo o asigna uno existente como ADMIN_UNIDAD de la unidad.
  *
  * Body para usuario nuevo:
- *   { tipo: 'nuevo', nombre_completo, curp, email, cedula_profesional? }
+ *   { tipo: 'nuevo', primer_nombre, apellido_paterno, segundo_nombre?, apellido_materno?, curp, email, cedula_profesional? }
  *
  * Body para usuario existente:
  *   { tipo: 'existente', usuario_id }
@@ -81,11 +85,15 @@ export async function crearOAsignar(req, res) {
 
     // ── Caso A: crear usuario nuevo ──────────────────────────────────────────
     if (tipo === 'nuevo') {
-      const { nombre_completo, curp, email, cedula_profesional } = req.body
+      const {
+        primer_nombre, apellido_paterno,
+        segundo_nombre, apellido_materno,
+        curp, email, cedula_profesional,
+      } = req.body
 
-      if (!nombre_completo || !curp || !email) {
+      if (!primer_nombre || !apellido_paterno || !curp || !email) {
         await client.query('ROLLBACK')
-        return res.status(400).json({ error: 'nombre_completo, curp y email son requeridos' })
+        return res.status(400).json({ error: 'primer_nombre, apellido_paterno, curp y email son requeridos' })
       }
 
       // Verificar duplicados por email o CURP
@@ -110,9 +118,15 @@ export async function crearOAsignar(req, res) {
       usuario = uRows[0]
 
       await client.query(
-        `INSERT INTO adm_personal_salud (usuario_id, nombre_completo, cedula_profesional)
-         VALUES ($1, $2, $3)`,
-        [usuario.id, nombre_completo, cedula_profesional || null]
+        `INSERT INTO adm_personal_salud
+           (usuario_id, primer_nombre, segundo_nombre, apellido_paterno, apellido_materno, cedula_profesional)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          usuario.id,
+          primer_nombre.trim(), segundo_nombre?.trim() || null,
+          apellido_paterno.trim(), apellido_materno?.trim() || null,
+          cedula_profesional || null,
+        ]
       )
 
     // ── Caso B: asignar usuario existente ────────────────────────────────────

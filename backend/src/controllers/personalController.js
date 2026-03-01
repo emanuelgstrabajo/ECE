@@ -19,7 +19,9 @@ export async function listar(req, res) {
 
   const { rows } = await pool.query(
     `SELECT
-       p.id, p.nombre_completo, p.cedula_profesional,
+       p.id, p.primer_nombre, p.segundo_nombre,
+       p.apellido_paterno, p.apellido_materno,
+       p.nombre_completo, p.cedula_profesional,
        p.usuario_id, p.tipo_personal_id,
        u.email, u.curp, u.activo AS usuario_activo,
        tp.descripcion AS tipo_personal,
@@ -45,11 +47,17 @@ export async function listar(req, res) {
      LEFT JOIN adm_usuario_unidad_rol a   ON a.usuario_id = p.usuario_id AND a.activo = TRUE
      LEFT JOIN adm_unidades_medicas um    ON a.unidad_medica_id = um.id
      LEFT JOIN cat_roles r                ON a.rol_id = r.id
-     WHERE ($1 = '' OR p.nombre_completo ILIKE $2 OR u.email ILIKE $2)
+     WHERE ($1 = '' OR p.nombre_completo ILIKE $2
+                    OR p.primer_nombre   ILIKE $2
+                    OR p.apellido_paterno ILIKE $2
+                    OR u.email ILIKE $2)
        AND ($3::int IS NULL OR a.unidad_medica_id = $3)
-     GROUP BY p.id, p.nombre_completo, p.cedula_profesional, p.usuario_id,
-              p.tipo_personal_id, u.email, u.curp, u.activo, tp.descripcion
-     ORDER BY p.nombre_completo
+     GROUP BY p.id, p.primer_nombre, p.segundo_nombre,
+              p.apellido_paterno, p.apellido_materno,
+              p.nombre_completo, p.cedula_profesional,
+              p.usuario_id, p.tipo_personal_id,
+              u.email, u.curp, u.activo, tp.descripcion
+     ORDER BY p.apellido_paterno, p.primer_nombre
      LIMIT $4 OFFSET $5`,
     [search, `%${search}%`, unidad_id, limit, offset]
   )
@@ -67,7 +75,9 @@ export async function listar(req, res) {
 export async function obtener(req, res) {
   const { rows } = await pool.query(
     `SELECT
-       p.id, p.nombre_completo, p.cedula_profesional,
+       p.id, p.primer_nombre, p.segundo_nombre,
+       p.apellido_paterno, p.apellido_materno,
+       p.nombre_completo, p.cedula_profesional,
        p.usuario_id, p.tipo_personal_id,
        u.email, u.curp, u.activo AS usuario_activo, u.rol_id,
        tp.descripcion AS tipo_personal,
@@ -93,8 +103,11 @@ export async function obtener(req, res) {
      LEFT JOIN adm_unidades_medicas um    ON a.unidad_medica_id = um.id
      LEFT JOIN cat_roles r                ON a.rol_id = r.id
      WHERE p.id = $1
-     GROUP BY p.id, p.nombre_completo, p.cedula_profesional, p.usuario_id,
-              p.tipo_personal_id, u.email, u.curp, u.activo, u.rol_id, tp.descripcion`,
+     GROUP BY p.id, p.primer_nombre, p.segundo_nombre,
+              p.apellido_paterno, p.apellido_materno,
+              p.nombre_completo, p.cedula_profesional,
+              p.usuario_id, p.tipo_personal_id,
+              u.email, u.curp, u.activo, u.rol_id, tp.descripcion`,
     [req.params.id]
   )
   if (!rows[0]) return res.status(404).json({ error: 'Registro de personal no encontrado' })
@@ -107,10 +120,15 @@ export async function obtener(req, res) {
  * por separado en POST /api/admin/usuarios/:id/asignaciones.
  */
 export async function crear(req, res) {
-  const { usuario_id, nombre_completo, tipo_personal_id, cedula_profesional } = req.body
+  const {
+    usuario_id,
+    primer_nombre, segundo_nombre,
+    apellido_paterno, apellido_materno,
+    tipo_personal_id, cedula_profesional,
+  } = req.body
 
-  if (!nombre_completo || !tipo_personal_id) {
-    return res.status(400).json({ error: 'Nombre completo y tipo de personal son requeridos' })
+  if (!primer_nombre || !apellido_paterno) {
+    return res.status(400).json({ error: 'primer_nombre y apellido_paterno son requeridos' })
   }
 
   if (usuario_id) {
@@ -121,10 +139,18 @@ export async function crear(req, res) {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO adm_personal_salud (usuario_id, nombre_completo, tipo_personal_id, cedula_profesional)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id, nombre_completo, usuario_id, tipo_personal_id`,
-    [usuario_id || null, nombre_completo, tipo_personal_id, cedula_profesional || null]
+    `INSERT INTO adm_personal_salud
+       (usuario_id, primer_nombre, segundo_nombre, apellido_paterno, apellido_materno,
+        tipo_personal_id, cedula_profesional)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING id, primer_nombre, segundo_nombre, apellido_paterno, apellido_materno,
+               nombre_completo, usuario_id, tipo_personal_id`,
+    [
+      usuario_id || null,
+      primer_nombre.trim(), segundo_nombre?.trim() || null,
+      apellido_paterno.trim(), apellido_materno?.trim() || null,
+      tipo_personal_id || null, cedula_profesional || null,
+    ]
   )
 
   await auditLog({
@@ -145,19 +171,31 @@ export async function crear(req, res) {
  */
 export async function actualizar(req, res) {
   const { id } = req.params
-  const { nombre_completo, tipo_personal_id, cedula_profesional } = req.body
+  const {
+    primer_nombre, segundo_nombre,
+    apellido_paterno, apellido_materno,
+    tipo_personal_id, cedula_profesional,
+  } = req.body
 
   const anterior = await pool.query('SELECT * FROM adm_personal_salud WHERE id = $1', [id])
   if (!anterior.rows[0]) return res.status(404).json({ error: 'Registro no encontrado' })
 
   const { rows } = await pool.query(
     `UPDATE adm_personal_salud
-     SET nombre_completo    = COALESCE($1, nombre_completo),
-         tipo_personal_id   = COALESCE($2, tipo_personal_id),
-         cedula_profesional = COALESCE($3, cedula_profesional)
-     WHERE id = $4
-     RETURNING id, nombre_completo, tipo_personal_id, cedula_profesional`,
-    [nombre_completo, tipo_personal_id, cedula_profesional, id]
+     SET primer_nombre      = COALESCE($1, primer_nombre),
+         segundo_nombre     = COALESCE($2, segundo_nombre),
+         apellido_paterno   = COALESCE($3, apellido_paterno),
+         apellido_materno   = COALESCE($4, apellido_materno),
+         tipo_personal_id   = COALESCE($5, tipo_personal_id),
+         cedula_profesional = COALESCE($6, cedula_profesional)
+     WHERE id = $7
+     RETURNING id, primer_nombre, segundo_nombre, apellido_paterno, apellido_materno,
+               nombre_completo, tipo_personal_id, cedula_profesional`,
+    [
+      primer_nombre?.trim() || null, segundo_nombre?.trim() || null,
+      apellido_paterno?.trim() || null, apellido_materno?.trim() || null,
+      tipo_personal_id, cedula_profesional, id,
+    ]
   )
 
   await auditLog({

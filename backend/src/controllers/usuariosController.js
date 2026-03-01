@@ -19,7 +19,10 @@ export async function listar(req, res) {
        u.id, u.curp, u.email, u.activo, u.ultimo_acceso,
        u.intentos_fallidos, u.bloqueado_hasta,
        r.id AS rol_id, r.clave AS rol_clave, r.nombre AS rol_nombre,
-       p.id AS personal_id, p.nombre_completo,
+       p.id AS personal_id,
+       p.primer_nombre, p.segundo_nombre,
+       p.apellido_paterno, p.apellido_materno,
+       p.nombre_completo,
        -- Asignaciones activas como array JSON
        COALESCE(
          json_agg(
@@ -40,11 +43,15 @@ export async function listar(req, res) {
      LEFT JOIN adm_usuario_unidad_rol a   ON a.usuario_id = u.id AND a.activo = TRUE
      LEFT JOIN adm_unidades_medicas um    ON a.unidad_medica_id = um.id
      LEFT JOIN cat_roles ra               ON a.rol_id = ra.id
-     WHERE ($1 = '' OR u.email ILIKE $2 OR UPPER(u.curp) ILIKE $2 OR p.nombre_completo ILIKE $2)
+     WHERE ($1 = '' OR u.email ILIKE $2 OR UPPER(u.curp) ILIKE $2
+                    OR p.nombre_completo ILIKE $2
+                    OR p.primer_nombre   ILIKE $2
+                    OR p.apellido_paterno ILIKE $2)
      GROUP BY u.id, u.curp, u.email, u.activo, u.ultimo_acceso,
               u.intentos_fallidos, u.bloqueado_hasta,
               r.id, r.clave, r.nombre,
-              p.id, p.nombre_completo
+              p.id, p.primer_nombre, p.segundo_nombre,
+              p.apellido_paterno, p.apellido_materno, p.nombre_completo
      ORDER BY u.email
      LIMIT $3 OFFSET $4`,
     [search, `%${search}%`, limit, offset]
@@ -66,7 +73,10 @@ export async function obtener(req, res) {
        u.id, u.curp, u.email, u.activo, u.ultimo_acceso,
        u.intentos_fallidos, u.bloqueado_hasta,
        r.id AS rol_id, r.clave AS rol_clave, r.nombre AS rol_nombre,
-       p.id AS personal_id, p.nombre_completo, p.cedula_profesional, p.tipo_personal_id,
+       p.id AS personal_id,
+       p.primer_nombre, p.segundo_nombre,
+       p.apellido_paterno, p.apellido_materno,
+       p.nombre_completo, p.cedula_profesional, p.tipo_personal_id,
        COALESCE(
          json_agg(
            json_build_object(
@@ -93,7 +103,9 @@ export async function obtener(req, res) {
      GROUP BY u.id, u.curp, u.email, u.activo, u.ultimo_acceso,
               u.intentos_fallidos, u.bloqueado_hasta,
               r.id, r.clave, r.nombre,
-              p.id, p.nombre_completo, p.cedula_profesional, p.tipo_personal_id`,
+              p.id, p.primer_nombre, p.segundo_nombre,
+              p.apellido_paterno, p.apellido_materno,
+              p.nombre_completo, p.cedula_profesional, p.tipo_personal_id`,
     [req.params.id]
   )
   if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
@@ -108,11 +120,8 @@ export async function obtener(req, res) {
 export async function crear(req, res) {
   const {
     curp, email, password, rol_id,
-    // Datos de perfil profesional — campos desglosados (Fase 2+)
     primer_nombre, segundo_nombre, apellido_paterno, apellido_materno,
     tipo_personal_id, cedula_profesional,
-    // Compatibilidad legacy: si se manda nombre_completo directamente
-    nombre_completo: nombre_completo_directo,
   } = req.body
 
   if (!curp || !email || !password || !rol_id) {
@@ -123,6 +132,12 @@ export async function crear(req, res) {
     return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' })
   }
 
+  // Si se quiere crear perfil de personal, primer_nombre y apellido_paterno son requeridos
+  const crearPerfil = !!(primer_nombre || apellido_paterno || tipo_personal_id)
+  if (crearPerfil && (!primer_nombre || !apellido_paterno)) {
+    return res.status(400).json({ error: 'Para el perfil profesional se requieren primer_nombre y apellido_paterno' })
+  }
+
   const dup = await pool.query(
     'SELECT id FROM adm_usuarios WHERE LOWER(email) = LOWER($1) OR UPPER(curp) = UPPER($2)',
     [email, curp]
@@ -130,10 +145,6 @@ export async function crear(req, res) {
   if (dup.rows.length) {
     return res.status(409).json({ error: 'Ya existe un usuario con ese email o CURP' })
   }
-
-  // Calcular nombre_completo a partir de partes o usar el directo
-  const partes = [apellido_paterno, apellido_materno, primer_nombre, segundo_nombre].filter(Boolean)
-  const nombre_completo = partes.length > 0 ? partes.join(' ') : nombre_completo_directo || null
 
   const password_hash = await bcrypt.hash(password, SALT_ROUNDS)
 
@@ -150,16 +161,16 @@ export async function crear(req, res) {
     const usuario = rows[0]
 
     // Crear perfil profesional si se proporcionan datos de nombre
-    if (nombre_completo) {
+    if (crearPerfil) {
       await client.query(
         `INSERT INTO adm_personal_salud
-           (usuario_id, nombre_completo, primer_nombre, segundo_nombre,
+           (usuario_id, primer_nombre, segundo_nombre,
             apellido_paterno, apellido_materno, tipo_personal_id, cedula_profesional)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
-          usuario.id, nombre_completo,
-          primer_nombre || null, segundo_nombre || null,
-          apellido_paterno || null, apellido_materno || null,
+          usuario.id,
+          primer_nombre.trim(), segundo_nombre?.trim() || null,
+          apellido_paterno.trim(), apellido_materno?.trim() || null,
           tipo_personal_id || null, cedula_profesional || null,
         ]
       )

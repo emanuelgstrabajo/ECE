@@ -124,7 +124,9 @@ function ModalAdministradores({ unidad, onClose }) {
 
   // Formulario: nuevo usuario
   const [formNuevo, setFormNuevo] = useState({
-    nombre_completo: '', curp: '', email: '', cedula_profesional: '',
+    primer_nombre: '', segundo_nombre: '',
+    apellido_paterno: '', apellido_materno: '',
+    curp: '', email: '', cedula_profesional: '',
   })
 
   // Lista de admins actuales
@@ -146,7 +148,7 @@ function ModalAdministradores({ unidad, onClose }) {
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['admins-unidad', unidad.id] })
       setExito(res.mensaje)
-      setFormNuevo({ nombre_completo: '', curp: '', email: '', cedula_profesional: '' })
+      setFormNuevo({ primer_nombre: '', segundo_nombre: '', apellido_paterno: '', apellido_materno: '', curp: '', email: '', cedula_profesional: '' })
       setBusqueda('')
       setUsuarioSeleccionado(null)
     },
@@ -265,16 +267,46 @@ function ModalAdministradores({ unidad, onClose }) {
           {tabForm === 'nuevo' && (
             <form onSubmit={submitNuevo} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Nombre completo *</label>
+                {/* Nombre(s) — NOM-024 */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Apellido paterno *</label>
                   <input
                     required
-                    value={formNuevo.nombre_completo}
-                    onChange={e => setFormNuevo(f => ({ ...f, nombre_completo: e.target.value }))}
-                    placeholder="Apellidos y nombre(s)"
+                    value={formNuevo.apellido_paterno}
+                    onChange={e => setFormNuevo(f => ({ ...f, apellido_paterno: e.target.value }))}
+                    placeholder="García"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Apellido materno</label>
+                  <input
+                    value={formNuevo.apellido_materno}
+                    onChange={e => setFormNuevo(f => ({ ...f, apellido_materno: e.target.value }))}
+                    placeholder="López (opcional)"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Nombre(s) *</label>
+                  <input
+                    required
+                    value={formNuevo.primer_nombre}
+                    onChange={e => setFormNuevo(f => ({ ...f, primer_nombre: e.target.value }))}
+                    placeholder="Carlos"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Segundo nombre</label>
+                  <input
+                    value={formNuevo.segundo_nombre}
+                    onChange={e => setFormNuevo(f => ({ ...f, segundo_nombre: e.target.value }))}
+                    placeholder="Miguel (opcional)"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                {/* Identificación */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">CURP *</label>
                   <input
