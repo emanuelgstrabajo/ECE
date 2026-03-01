@@ -47,6 +47,13 @@ function RutaPublica({ children }) {
   return children
 }
 
+function RedirigirPorRol() {
+  const { usuario } = useAuth()
+  if (usuario?.rol === 'SUPERADMIN') return <Navigate to="/admin/unidades" replace />
+  if (usuario?.rol === 'ADMIN_UNIDAD') return <Navigate to="/admin-unidad/dashboard" replace />
+  return <Navigate to="/dashboard" replace />
+}
+
 export default function App() {
   return (
     <Routes>
@@ -55,7 +62,7 @@ export default function App() {
 
       {/* Rutas con layout (sidebar) — requieren autenticación */}
       <Route element={<RutaProtegida><AppLayout /></RutaProtegida>}>
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<RedirigirPorRol />} />
 
         {/* SuperAdmin — 4 secciones fijas */}
         <Route path="/admin/dashboard" element={<RutaProtegida roles={['SUPERADMIN']}><DashboardSuperAdmin /></RutaProtegida>} />

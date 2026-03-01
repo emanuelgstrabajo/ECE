@@ -82,53 +82,11 @@ export default function Sidebar() {
       {/* Navegación */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
 
-        {/* ── SUPERADMIN: 4 secciones fijas ──────────────────────── */}
+        {/* ── SUPERADMIN ───────────────────────────────────────── */}
         {esSuperAdmin && (
           <>
-            <SidebarSection title="Principal" />
-
-            {/* 1. Dashboard General */}
-            <SidebarLink to="/admin/dashboard" iconKey="dashboard" label="Dashboard general" />
-
-            {/* 2. Unidades Médicas */}
+            <SidebarSection title="Administración" />
             <SidebarLink to="/admin/unidades" iconKey="unidades" label="Unidades médicas" />
-
-            {/* 3. Usuarios */}
-            <SidebarLink to="/admin/usuarios" iconKey="usuarios" label="Usuarios" />
-
-            {/* 4. Catálogos & GIIS */}
-            <SidebarLink to="/admin/catalogos" iconKey="catalogos" label="Catálogos & GIIS" />
-
-            <SidebarDivider />
-            <SidebarSection title="Gestión avanzada" />
-
-            {/* Personal / Transferencias */}
-            <SidebarLink to="/admin/personal" iconKey="personal" label="Personal de salud" />
-
-            {/* Bitácora global */}
-            <SidebarLink to="/admin/bitacora" iconKey="bitacora" label="Bitácora global" />
-          </>
-        )}
-
-        {/* ── ADMIN_UNIDAD ─────────────────────────────────────── */}
-        {esAdminUnidad && (
-          <>
-            <SidebarSection title="Mi unidad" />
-            <SidebarLink to="/admin-unidad/dashboard"  iconKey="dashboard"  label="Dashboard" />
-            <SidebarLink to="/admin-unidad/personal"   iconKey="personal"   label="Personal" />
-            <SidebarLink to="/admin-unidad/servicios"  iconKey="unidades"   label="Servicios" />
-            <SidebarLink to="/admin-unidad/normativas" iconKey="catalogos"  label="Normativas" />
-            <SidebarLink to="/admin-unidad/bitacora"   iconKey="bitacora"   label="Bitácora" />
-          </>
-        )}
-
-        {/* ── Roles operativos (Fase 3) ─────────────────────────── */}
-        {!esSuperAdmin && !esAdminUnidad && (
-          <>
-            <SidebarSection title="Módulos" />
-            <div className="px-3 py-6 text-center text-xs text-gray-400">
-              Los módulos clínicos estarán disponibles en Fase 3
-            </div>
           </>
         )}
       </nav>
