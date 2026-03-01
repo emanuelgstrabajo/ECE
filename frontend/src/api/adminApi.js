@@ -48,6 +48,14 @@ export const adminApi = {
   cambiarEstatusGiis: (id, estatus) => axiosClient.patch(`/admin/giis/${id}/estatus`, { estatus }).then(r => r.data),
   getCamposGiis: (id) => axiosClient.get(`/admin/giis/${id}/campos`).then(r => r.data),
 
+  // Administradores de unidad
+  getAdministradoresUnidad: (unidadId) =>
+    axiosClient.get(`/admin/unidades/${unidadId}/administradores`).then(r => r.data),
+  crearAdministrador: (unidadId, body) =>
+    axiosClient.post(`/admin/unidades/${unidadId}/administradores`, body).then(r => r.data),
+  revocarAdministrador: (unidadId, asigId, body) =>
+    axiosClient.delete(`/admin/unidades/${unidadId}/administradores/${asigId}`, { data: body }).then(r => r.data),
+
   // Bitácora
   getBitacora: (params) => axiosClient.get('/admin/bitacora', { params }).then(r => r.data),
 }

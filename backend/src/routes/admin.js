@@ -8,6 +8,7 @@ import * as usuarios  from '../controllers/usuariosController.js'
 import * as personal  from '../controllers/personalController.js'
 import * as bitacora  from '../controllers/bitacoraController.js'
 import * as giis      from '../controllers/giisController.js'
+import * as admins    from '../controllers/administradoresController.js'
 
 const router = Router()
 const soloSuperAdmin = [verifyToken, requireRole('SUPERADMIN')]
@@ -22,7 +23,12 @@ router.get('/unidades/catalogo',    ...soloSuperAdmin, unidades.buscarCatalogo)
 router.get('/unidades',             ...soloSuperAdmin, unidades.listar)
 router.get('/unidades/:id',         ...soloSuperAdmin, unidades.obtener)
 router.post('/unidades',            ...soloSuperAdmin, unidades.crear)
-router.post('/unidades/:id/habilitar', ...soloSuperAdmin, unidades.habilitar)
+router.post('/unidades/:id/habilitar',                        ...soloSuperAdmin, unidades.habilitar)
+
+// ── Administradores de unidad ─────────────────────────────────────
+router.get('/unidades/:id/administradores',              ...soloSuperAdmin, admins.listar)
+router.post('/unidades/:id/administradores',             ...soloSuperAdmin, admins.crearOAsignar)
+router.delete('/unidades/:id/administradores/:asig_id',  ...soloSuperAdmin, admins.revocar)
 router.put('/unidades/:id',         ...soloSuperAdmin, unidades.actualizar)
 router.delete('/unidades/:id',      ...soloSuperAdmin, unidades.desactivar)
 
