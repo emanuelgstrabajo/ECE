@@ -361,10 +361,10 @@ export default function Usuarios() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">CURP *</label>
-              <input {...register('curp', { required: 'Requerido', minLength: { value: 18, message: '18 caracteres' } })}
+              <label className="block text-sm font-medium text-gray-700 mb-1">CURP <span className="text-gray-400 font-normal">(opcional)</span></label>
+              <input {...register('curp', { minLength: { value: 18, message: '18 caracteres' }, maxLength: { value: 18, message: '18 caracteres' } })}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none uppercase"
-                placeholder="CURP (18 chars)" maxLength={18} />
+                placeholder="CURP 18 caracteres" maxLength={18} />
               {errors.curp && <p className="text-red-500 text-xs mt-1">{errors.curp.message}</p>}
             </div>
             <div>
@@ -397,25 +397,39 @@ export default function Usuarios() {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider pt-2">Perfil profesional (opcional)</p>
               <p className="text-xs text-gray-400 -mt-2">Las asignaciones a unidades se configuran después con el botón "Asignaciones".</p>
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
-                  <input {...register('nombre_completo')}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                    placeholder="Nombre completo" />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Primer nombre *</label>
+                  <input {...register('primer_nombre', { required: 'Requerido' })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none uppercase"
+                    placeholder="PRIMER NOMBRE" />
+                  {errors.primer_nombre && <p className="text-red-500 text-xs mt-1">{errors.primer_nombre.message}</p>}
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Segundo nombre</label>
+                  <input {...register('segundo_nombre')}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none uppercase"
+                    placeholder="SEGUNDO NOMBRE" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Apellido paterno *</label>
+                  <input {...register('apellido_paterno', { required: 'Requerido' })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none uppercase"
+                    placeholder="APELLIDO PATERNO" />
+                  {errors.apellido_paterno && <p className="text-red-500 text-xs mt-1">{errors.apellido_paterno.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Apellido materno</label>
+                  <input {...register('apellido_materno')}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none uppercase"
+                    placeholder="APELLIDO MATERNO" />
+                </div>
+                <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de personal</label>
                   <select {...register('tipo_personal_id')}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white">
                     <option value="">Seleccionar...</option>
                     {(tiposData?.data ?? []).map(t => <option key={t.id} value={t.id}>{t.descripcion}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cédula profesional</label>
-                  <input {...register('cedula_profesional')}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                    placeholder="Opcional" />
                 </div>
               </div>
             </>

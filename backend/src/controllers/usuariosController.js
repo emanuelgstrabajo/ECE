@@ -121,11 +121,11 @@ export async function crear(req, res) {
   const {
     curp, email, password, rol_id,
     primer_nombre, segundo_nombre, apellido_paterno, apellido_materno,
-    tipo_personal_id, cedula_profesional,
+    tipo_personal_id,
   } = req.body
 
-  if (!curp || !email || !password || !rol_id) {
-    return res.status(400).json({ error: 'CURP, email, contraseña y rol son requeridos' })
+  if (!email || !password || !rol_id) {
+    return res.status(400).json({ error: 'Email, contraseña y rol son requeridos' })
   }
 
   if (password.length < 8) {
@@ -135,15 +135,26 @@ export async function crear(req, res) {
   // Si se quiere crear perfil de personal, primer_nombre y apellido_paterno son requeridos
   const crearPerfil = !!(primer_nombre || apellido_paterno || tipo_personal_id)
   if (crearPerfil && (!primer_nombre || !apellido_paterno)) {
-    return res.status(400).json({ error: 'Para el perfil profesional se requieren primer_nombre y apellido_paterno' })
+    return res.status(400).json({ error: 'Para el perfil profesional se requieren primer nombre y apellido paterno' })
   }
 
-  const dup = await pool.query(
-    'SELECT id FROM adm_usuarios WHERE LOWER(email) = LOWER($1) OR UPPER(curp) = UPPER($2)',
-    [email, curp]
-  )
-  if (dup.rows.length) {
-    return res.status(409).json({ error: 'Ya existe un usuario con ese email o CURP' })
+  // Verificar duplicados (CURP solo si fue proporcionada)
+  if (curp) {
+    const dup = await pool.query(
+      'SELECT id FROM adm_usuarios WHERE LOWER(email) = LOWER($1) OR UPPER(curp) = UPPER($2)',
+      [email, curp]
+    )
+    if (dup.rows.length) {
+      return res.status(409).json({ error: 'Ya existe un usuario con ese email o CURP' })
+    }
+  } else {
+    const dup = await pool.query(
+      'SELECT id FROM adm_usuarios WHERE LOWER(email) = LOWER($1)',
+      [email]
+    )
+    if (dup.rows.length) {
+      return res.status(409).json({ error: 'Ya existe un usuario con ese email' })
+    }
   }
 
   const password_hash = await bcrypt.hash(password, SALT_ROUNDS)
@@ -156,7 +167,7 @@ export async function crear(req, res) {
       `INSERT INTO adm_usuarios (curp, email, password_hash, rol_id)
        VALUES ($1, $2, $3, $4)
        RETURNING id, curp, email, activo, rol_id`,
-      [curp.toUpperCase(), email.toLowerCase(), password_hash, rol_id]
+      [curp ? curp.toUpperCase() : null, email.toLowerCase(), password_hash, rol_id]
     )
     const usuario = rows[0]
 
@@ -165,13 +176,15 @@ export async function crear(req, res) {
       await client.query(
         `INSERT INTO adm_personal_salud
            (usuario_id, primer_nombre, segundo_nombre,
-            apellido_paterno, apellido_materno, tipo_personal_id, cedula_profesional)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            apellido_paterno, apellido_materno, tipo_personal_id)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
         [
           usuario.id,
-          primer_nombre.trim(), segundo_nombre?.trim() || null,
-          apellido_paterno.trim(), apellido_materno?.trim() || null,
-          tipo_personal_id || null, cedula_profesional || null,
+          primer_nombre.trim().toUpperCase(),
+          segundo_nombre?.trim().toUpperCase() || null,
+          apellido_paterno.trim().toUpperCase(),
+          apellido_materno?.trim().toUpperCase() || null,
+          tipo_personal_id || null,
         ]
       )
     }
@@ -183,7 +196,7 @@ export async function crear(req, res) {
       accion: 'CREATE',
       tabla_afectada: 'adm_usuarios',
       registro_id: usuario.id,
-      datos_nuevos: { email: usuario.email, curp: usuario.curp, rol_id },
+      datos_nuevos: { email: usuario.email, ...(usuario.curp && { curp: usuario.curp }), rol_id },
       ip: getClientIp(req),
       user_agent: req.headers['user-agent'],
       client,
