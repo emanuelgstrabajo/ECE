@@ -3,13 +3,13 @@ import { useAuth } from '../../context/AuthContext.jsx'
 
 const svg = {
   dashboard: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
-  unidades:  'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
-  usuarios:  'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+  unidades: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  usuarios: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
   catalogos: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6m-3-3v6',
-  personal:  'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
-  bitacora:  'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
-  transfer:  'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
-  export:    'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4',
+  personal: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+  bitacora: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
+  transfer: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
+  export: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4',
 }
 
 function NavIcon({ d }) {
@@ -25,10 +25,9 @@ function SidebarLink({ to, iconKey, label }) {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-          isActive
-            ? 'bg-primary-600 text-white'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
+          ? 'bg-primary-600 text-white'
+          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
         }`
       }
     >
@@ -59,7 +58,7 @@ export default function Sidebar() {
     navigate('/login', { replace: true })
   }
 
-  const esSuperAdmin  = usuario?.rol === 'SUPERADMIN'
+  const esSuperAdmin = usuario?.rol === 'SUPERADMIN'
   const esAdminUnidad = usuario?.rol === 'ADMIN_UNIDAD'
 
   return (
@@ -82,43 +81,32 @@ export default function Sidebar() {
       {/* Navegación */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
 
-        {/* ── SUPERADMIN: 4 secciones fijas ──────────────────────── */}
+        {/* ── SUPERADMIN: 4 secciones fijas (OCULTADAS FASE 1B MINIMALISTA) ── 
         {esSuperAdmin && (
           <>
             <SidebarSection title="Principal" />
-
-            {/* 1. Dashboard General */}
             <SidebarLink to="/admin/dashboard" iconKey="dashboard" label="Dashboard general" />
-
-            {/* 2. Unidades Médicas */}
             <SidebarLink to="/admin/unidades" iconKey="unidades" label="Unidades médicas" />
-
-            {/* 3. Usuarios */}
             <SidebarLink to="/admin/usuarios" iconKey="usuarios" label="Usuarios" />
-
-            {/* 4. Catálogos & GIIS */}
             <SidebarLink to="/admin/catalogos" iconKey="catalogos" label="Catálogos & GIIS" />
 
             <SidebarDivider />
             <SidebarSection title="Gestión avanzada" />
-
-            {/* Personal / Transferencias */}
             <SidebarLink to="/admin/personal" iconKey="personal" label="Personal de salud" />
-
-            {/* Bitácora global */}
             <SidebarLink to="/admin/bitacora" iconKey="bitacora" label="Bitácora global" />
           </>
         )}
+        */}
 
         {/* ── ADMIN_UNIDAD ─────────────────────────────────────── */}
         {esAdminUnidad && (
           <>
             <SidebarSection title="Mi unidad" />
-            <SidebarLink to="/admin-unidad/dashboard"  iconKey="dashboard"  label="Dashboard" />
-            <SidebarLink to="/admin-unidad/personal"   iconKey="personal"   label="Personal" />
-            <SidebarLink to="/admin-unidad/servicios"  iconKey="unidades"   label="Servicios" />
-            <SidebarLink to="/admin-unidad/normativas" iconKey="catalogos"  label="Normativas" />
-            <SidebarLink to="/admin-unidad/bitacora"   iconKey="bitacora"   label="Bitácora" />
+            <SidebarLink to="/admin-unidad/dashboard" iconKey="dashboard" label="Dashboard" />
+            <SidebarLink to="/admin-unidad/personal" iconKey="personal" label="Personal" />
+            <SidebarLink to="/admin-unidad/servicios" iconKey="unidades" label="Servicios" />
+            <SidebarLink to="/admin-unidad/normativas" iconKey="catalogos" label="Normativas" />
+            <SidebarLink to="/admin-unidad/bitacora" iconKey="bitacora" label="Bitácora" />
           </>
         )}
 

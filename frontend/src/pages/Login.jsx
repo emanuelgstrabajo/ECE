@@ -16,10 +16,10 @@ function IconoCruz() {
 // Etiqueta de rol con color institucional
 function BadgeRol({ clave }) {
   const colores = {
-    MEDICO:        'bg-blue-100 text-blue-800',
-    ENFERMERA:     'bg-green-100 text-green-800',
+    MEDICO: 'bg-blue-100 text-blue-800',
+    ENFERMERA: 'bg-green-100 text-green-800',
     RECEPCIONISTA: 'bg-purple-100 text-purple-800',
-    ADMIN_UNIDAD:  'bg-amber-100 text-amber-800',
+    ADMIN_UNIDAD: 'bg-amber-100 text-amber-800',
   }
   return (
     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${colores[clave] ?? 'bg-gray-100 text-gray-700'}`}>
@@ -36,11 +36,11 @@ export default function Login() {
   const [paso, setPaso] = useState('credenciales')
 
   // Datos para el selector de unidad
-  const [unidades, setUnidades]   = useState([])
-  const [preToken, setPreToken]   = useState(null)
+  const [unidades, setUnidades] = useState([])
+  const [preToken, setPreToken] = useState(null)
   const [seleccionando, setSeleccionando] = useState(false)
 
-  const [error, setError]     = useState(null)
+  const [error, setError] = useState(null)
   const [cargando, setCargando] = useState(false)
 
   const {
@@ -64,7 +64,12 @@ export default function Login() {
       } else {
         // Una sola unidad o SUPERADMIN → token directo
         iniciarSesion(data.accessToken, data.usuario)
-        navigate('/dashboard', { replace: true })
+
+        if (data.usuario.rol === 'SUPERADMIN') {
+          navigate('/superadmin/habilitar-unidad', { replace: true })
+        } else {
+          navigate('/dashboard', { replace: true })
+        }
       }
     } catch (err) {
       const msg = err.response?.data?.error || 'Error al iniciar sesión. Intente de nuevo.'
