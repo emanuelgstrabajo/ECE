@@ -1,41 +1,52 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 
-const iconos = {
-  dashboard:  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />,
-  unidades:   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />,
-  usuarios:   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />,
-  personal:   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />,
-  bitacora:   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />,
+const svg = {
+  dashboard: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+  unidades: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  usuarios: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+  catalogos: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6m-3-3v6',
+  personal: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+  bitacora: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
+  transfer: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
+  export: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4',
 }
 
 function NavIcon({ d }) {
   return (
-    <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d?.props?.d} />
-      {d}
+    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
     </svg>
   )
 }
 
-function SidebarLink({ to, icon, label }) {
+function SidebarLink({ to, iconKey, label }) {
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-          isActive
-            ? 'bg-primary-600 text-white'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
+          ? 'bg-primary-600 text-white'
+          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
         }`
       }
     >
-      <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        {icon}
-      </svg>
+      <NavIcon d={svg[iconKey]} />
       {label}
     </NavLink>
   )
+}
+
+function SidebarSection({ title }) {
+  return (
+    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-5 pb-1 select-none">
+      {title}
+    </p>
+  )
+}
+
+function SidebarDivider() {
+  return <div className="my-2 border-t border-gray-100" />
 }
 
 export default function Sidebar() {
@@ -48,12 +59,13 @@ export default function Sidebar() {
   }
 
   const esSuperAdmin = usuario?.rol === 'SUPERADMIN'
+  const esAdminUnidad = usuario?.rol === 'ADMIN_UNIDAD'
 
   return (
-    <aside className="w-60 bg-white border-r border-gray-200 flex flex-col h-full">
+    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
       {/* Logo */}
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center flex-shrink-0">
             <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" />
@@ -61,43 +73,65 @@ export default function Sidebar() {
           </div>
           <div>
             <p className="font-bold text-gray-900 text-sm leading-none">SIRES</p>
-            <p className="text-xs text-gray-400">ECE Global</p>
+            <p className="text-xs text-gray-400 leading-tight">Sistema ECE Global</p>
           </div>
         </div>
       </div>
 
       {/* Navegación */}
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        <SidebarLink
-          to="/dashboard"
-          label="Inicio"
-          icon={iconos.dashboard}
-        />
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
 
+        {/* ── SUPERADMIN: 4 secciones fijas (OCULTADAS FASE 1B MINIMALISTA) ── 
         {esSuperAdmin && (
           <>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">
-              Administración
-            </p>
-            <SidebarLink to="/admin/unidades" label="Unidades Médicas" icon={iconos.unidades} />
-            <SidebarLink to="/admin/usuarios" label="Usuarios del Sistema" icon={iconos.usuarios} />
-            <SidebarLink to="/admin/personal" label="Personal de Salud" icon={iconos.personal} />
-            <SidebarLink to="/admin/bitacora" label="Bitácora NOM-024" icon={iconos.bitacora} />
+            <SidebarSection title="Principal" />
+            <SidebarLink to="/admin/dashboard" iconKey="dashboard" label="Dashboard general" />
+            <SidebarLink to="/admin/unidades" iconKey="unidades" label="Unidades médicas" />
+            <SidebarLink to="/admin/usuarios" iconKey="usuarios" label="Usuarios" />
+            <SidebarLink to="/admin/catalogos" iconKey="catalogos" label="Catálogos & GIIS" />
+
+            <SidebarDivider />
+            <SidebarSection title="Gestión avanzada" />
+            <SidebarLink to="/admin/personal" iconKey="personal" label="Personal de salud" />
+            <SidebarLink to="/admin/bitacora" iconKey="bitacora" label="Bitácora global" />
+          </>
+        )}
+        */}
+
+        {/* ── ADMIN_UNIDAD ─────────────────────────────────────── */}
+        {esAdminUnidad && (
+          <>
+            <SidebarSection title="Mi unidad" />
+            <SidebarLink to="/admin-unidad/dashboard" iconKey="dashboard" label="Dashboard" />
+            <SidebarLink to="/admin-unidad/personal" iconKey="personal" label="Personal" />
+            <SidebarLink to="/admin-unidad/servicios" iconKey="unidades" label="Servicios" />
+            <SidebarLink to="/admin-unidad/normativas" iconKey="catalogos" label="Normativas" />
+            <SidebarLink to="/admin-unidad/bitacora" iconKey="bitacora" label="Bitácora" />
+          </>
+        )}
+
+        {/* ── Roles operativos (Fase 3) ─────────────────────────── */}
+        {!esSuperAdmin && !esAdminUnidad && (
+          <>
+            <SidebarSection title="Módulos" />
+            <div className="px-3 py-6 text-center text-xs text-gray-400">
+              Los módulos clínicos estarán disponibles en Fase 3
+            </div>
           </>
         )}
       </nav>
 
       {/* Usuario / Logout */}
       <div className="p-3 border-t border-gray-200">
-        <div className="flex items-center gap-2 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-primary-700 text-sm font-semibold">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50">
+          <div className="w-7 h-7 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+            <span className="text-primary-700 text-xs font-bold">
               {usuario?.nombre?.[0]?.toUpperCase() || '?'}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-gray-900 truncate">{usuario?.nombre}</p>
-            <p className="text-xs text-gray-400">{usuario?.rol}</p>
+            <p className="text-xs font-semibold text-gray-900 truncate">{usuario?.nombre}</p>
+            <p className="text-xs text-gray-400 truncate">{usuario?.rol}</p>
           </div>
         </div>
         <button

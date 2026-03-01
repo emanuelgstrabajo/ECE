@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -11,7 +11,6 @@ import DataTable from '../../components/UI/DataTable.jsx'
 import Modal from '../../components/UI/Modal.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 
-// Fix del ícono de marcador en Vite
 const markerIcon = new L.Icon({
   iconUrl: markerIconPng,
   shadowUrl: markerShadowPng,
@@ -21,96 +20,494 @@ const markerIcon = new L.Icon({
 })
 
 function MapClickHandler({ onCoords }) {
-  useMapEvents({
-    click(e) {
-      onCoords({ lat: e.latlng.lat, lng: e.latlng.lng })
-    },
-  })
+  useMapEvents({ click(e) { onCoords({ lat: e.latlng.lat, lng: e.latlng.lng }) } })
   return null
 }
 
 function BadgeActivo({ activo }) {
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-      activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
+      activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
     }`}>
-      {activo ? 'Activa' : 'Inactiva'}
+      {activo ? 'Habilitada' : 'Inactiva'}
     </span>
   )
 }
 
-export default function Unidades() {
+// ── Modal: Habilitar unidad desde catálogo ───────────────────────────────────
+function ModalHabilitar({ isOpen, onClose }) {
   const qc = useQueryClient()
+  const [busqueda, setBusqueda] = useState('')
+  const [seleccionada, setSeleccionada] = useState(null)
+  const [paso, setPaso] = useState('buscar') // 'buscar' | 'confirmar'
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['catalogo-unidades', busqueda],
+    queryFn: () => adminApi.buscarCatalogoUnidades(busqueda),
+    enabled: busqueda.length >= 2 || busqueda === '',
+  })
+
+  const habilitarMut = useMutation({
+    mutationFn: () => adminApi.habilitarUnidad(seleccionada.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['unidades'] })
+      qc.invalidateQueries({ queryKey: ['unidades-mapa'] })
+      qc.invalidateQueries({ queryKey: ['dashboard-superadmin'] })
+      handleClose()
+    },
+  })
+
+  function handleClose() {
+    setBusqueda(''); setSeleccionada(null); setPaso('buscar'); onClose()
+  }
+
+  function seleccionar(u) { setSeleccionada(u); setPaso('confirmar') }
+
+  const unidades = data?.data ?? []
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Habilitar unidad médica" size="lg">
+      {paso === 'buscar' && (
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-gray-500 mb-3">
+              Busca una unidad del catálogo por CLUES o nombre para habilitarla en el sistema.
+              Solo aparecen unidades aún no habilitadas.
+            </p>
+            <input
+              type="search"
+              placeholder="Buscar por CLUES o nombre de unidad..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              autoFocus
+            />
+          </div>
+
+          {isLoading && (
+            <div className="flex justify-center py-6">
+              <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {!isLoading && unidades.length === 0 && busqueda.length >= 2 && (
+            <div className="text-center py-8 text-sm text-gray-500">
+              <p className="mb-2">No se encontraron unidades con "{busqueda}" en el catálogo.</p>
+              <p className="text-xs text-gray-400">
+                Si la unidad no existe en el catálogo, puedes registrarla con el botón "+ Registrar en catálogo".
+              </p>
+            </div>
+          )}
+
+          {!isLoading && unidades.length === 0 && busqueda.length < 2 && (
+            <div className="text-center py-6 text-sm text-gray-400">
+              Escribe al menos 2 caracteres para buscar
+            </div>
+          )}
+
+          {unidades.length > 0 && (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {unidades.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => seleccionar(u)}
+                  className="w-full text-left border border-gray-200 rounded-xl px-4 py-3 hover:border-primary-400 hover:bg-primary-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900">{u.nombre}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        CLUES: <span className="font-mono">{u.clues}</span>
+                        {u.tipo_unidad && <span> · {u.tipo_unidad}</span>}
+                      </p>
+                      {(u.municipio || u.entidad) && (
+                        <p className="text-xs text-gray-400">
+                          {u.municipio}{u.municipio && u.entidad ? ', ' : ''}{u.entidad}
+                        </p>
+                      )}
+                    </div>
+                    <svg className="w-5 h-5 text-primary-400 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {paso === 'confirmar' && seleccionada && (
+        <div className="space-y-5">
+          <button
+            onClick={() => setPaso('buscar')}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver a la búsqueda
+          </button>
+
+          <div className="border border-gray-200 rounded-xl p-5 bg-gray-50">
+            <h3 className="font-semibold text-gray-900 text-base mb-3">Información de la unidad</h3>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              <div>
+                <dt className="text-gray-500 text-xs">CLUES</dt>
+                <dd className="font-mono font-semibold text-gray-900">{seleccionada.clues}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500 text-xs">Tipo de unidad</dt>
+                <dd className="text-gray-900">{seleccionada.tipo_unidad || '—'}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-gray-500 text-xs">Nombre</dt>
+                <dd className="text-gray-900 font-medium">{seleccionada.nombre}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500 text-xs">Municipio</dt>
+                <dd className="text-gray-900">{seleccionada.municipio || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500 text-xs">Entidad</dt>
+                <dd className="text-gray-900">{seleccionada.entidad || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500 text-xs">Estatus operación</dt>
+                <dd className="text-gray-900">{seleccionada.estatus_operacion || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500 text-xs">Coordenadas</dt>
+                <dd className="text-gray-900 font-mono text-xs">
+                  {seleccionada.lat ? `${parseFloat(seleccionada.lat).toFixed(4)}, ${parseFloat(seleccionada.lng).toFixed(4)}` : 'Sin coords'}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="border border-amber-200 bg-amber-50 rounded-xl px-4 py-3 text-sm text-amber-800">
+            Al habilitar esta unidad, quedará disponible en el sistema para asignar personal y gestionar pacientes.
+          </div>
+
+          {habilitarMut.error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+              {habilitarMut.error?.response?.data?.error || 'Error al habilitar la unidad'}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setPaso('buscar')} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+              Cancelar
+            </button>
+            <button
+              onClick={() => habilitarMut.mutate()}
+              disabled={habilitarMut.isPending}
+              className="px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+            >
+              {habilitarMut.isPending ? 'Habilitando...' : 'Confirmar habilitación'}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+// ── Modal: Registrar unidad nueva en catálogo ────────────────────────────────
+function ModalRegistrarCatalogo({ isOpen, onClose }) {
+  const qc = useQueryClient()
+  const [coords, setCoords] = useState(null)
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm()
+
+  function handleClose() { reset(); setCoords(null); onClose() }
+
+  const createMutation = useMutation({
+    mutationFn: adminApi.createUnidad,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['catalogo-unidades'] }); handleClose() },
+  })
+
+  async function onSubmit(values) {
+    // Las unidades nuevas se crean sin activar (activo=false) para después habilitarlas
+    await createMutation.mutateAsync({ ...values, lat: coords?.lat, lng: coords?.lng, activo: false })
+  }
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Registrar unidad en catálogo" size="lg">
+      <p className="text-sm text-gray-500 mb-4">
+        Registra una nueva unidad médica en el catálogo del sistema. Después podrás habilitarla desde la pantalla principal.
+      </p>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {createMutation.error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+            {createMutation.error?.response?.data?.error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CLUES *</label>
+            <input
+              {...register('clues', { required: 'Requerido', maxLength: { value: 11, message: 'Máximo 11 caracteres' } })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none uppercase"
+              placeholder="Ej. DFIMB000026"
+              maxLength={11}
+            />
+            {errors.clues && <p className="text-red-500 text-xs mt-1">{errors.clues.message}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+            <input
+              {...register('nombre', { required: 'Requerido' })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              placeholder="Nombre de la unidad"
+            />
+            {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre.message}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de unidad</label>
+            <input {...register('tipo_unidad')}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              placeholder="Ej. Centro de Salud" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Estatus de operación</label>
+            <input {...register('estatus_operacion')}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              placeholder="Ej. En operación" />
+          </div>
+        </div>
+
+        <div className="flex gap-6">
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" {...register('tiene_espirometro')} className="rounded" />
+            Tiene espirómetro
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" {...register('es_servicio_amigable')} className="rounded" />
+            Servicio amigable
+          </label>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Ubicación en mapa {coords && <span className="text-xs text-green-600 font-normal">— {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}</span>}
+          </label>
+          <p className="text-xs text-gray-400 mb-2">Haz clic en el mapa para colocar la ubicación</p>
+          <div className="rounded-xl overflow-hidden border border-gray-200 h-52">
+            <MapContainer
+              center={coords ? [coords.lat, coords.lng] : [19.4326, -99.1332]}
+              zoom={coords ? 14 : 5}
+              style={{ height: '100%', width: '100%' }}
+            >
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <MapClickHandler onCoords={setCoords} />
+              {coords && <Marker position={[coords.lat, coords.lng]} icon={markerIcon} />}
+            </MapContainer>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2">
+          <button type="button" onClick={handleClose} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+            Cancelar
+          </button>
+          <button type="submit" disabled={isSubmitting}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50">
+            {isSubmitting ? 'Registrando...' : 'Registrar en catálogo'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+// ── Modal: Desactivar unidad con confirmación ─────────────────────────────────
+function ModalDesactivar({ unidad, onClose }) {
+  const qc = useQueryClient()
+  const [motivo, setMotivo] = useState('')
+
+  const desactivarMut = useMutation({
+    mutationFn: () => adminApi.deleteUnidad(unidad.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['unidades'] })
+      qc.invalidateQueries({ queryKey: ['dashboard-superadmin'] })
+      onClose()
+    },
+  })
+
+  return (
+    <Modal isOpen={!!unidad} onClose={onClose} title="Desactivar unidad médica" size="sm">
+      <div className="space-y-4">
+        <div className="border border-red-200 bg-red-50 rounded-xl p-4">
+          <p className="text-sm font-semibold text-red-800">{unidad?.nombre}</p>
+          <p className="text-xs text-red-600">CLUES: {unidad?.clues}</p>
+        </div>
+        <div className="text-sm text-gray-600">
+          Al desactivar esta unidad:
+          <ul className="list-disc list-inside mt-1 text-xs text-gray-500 space-y-0.5">
+            <li>El personal asignado perderá acceso</li>
+            <li>La unidad dejará de aparecer en el sistema operativo</li>
+            <li>El historial de datos se preserva (NOM-024)</li>
+          </ul>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Motivo (recomendado)</label>
+          <input
+            value={motivo}
+            onChange={e => setMotivo(e.target.value)}
+            placeholder="Ej. Cierre temporal, remodelación..."
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:outline-none"
+          />
+        </div>
+        {desactivarMut.error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
+            {desactivarMut.error?.response?.data?.error}
+          </div>
+        )}
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+            Cancelar
+          </button>
+          <button
+            onClick={() => desactivarMut.mutate()}
+            disabled={desactivarMut.isPending}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
+          >
+            {desactivarMut.isPending ? 'Desactivando...' : 'Desactivar unidad'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Modal: Editar unidad ────────────────────────────────────────────────────
+function ModalEditar({ unidad, onClose }) {
+  const qc = useQueryClient()
+  const [coords, setCoords] = useState(null)
+
+  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm()
+
+  useEffect(() => {
+    if (unidad) {
+      reset({
+        nombre: unidad.nombre,
+        tipo_unidad: unidad.tipo_unidad || '',
+        estatus_operacion: unidad.estatus_operacion || '',
+        tiene_espirometro: unidad.tiene_espirometro,
+        es_servicio_amigable: unidad.es_servicio_amigable,
+      })
+      setCoords(unidad.lat && unidad.lng ? { lat: parseFloat(unidad.lat), lng: parseFloat(unidad.lng) } : null)
+    }
+  }, [unidad, reset])
+
+  const updateMutation = useMutation({
+    mutationFn: (body) => adminApi.updateUnidad(unidad.id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['unidades'] })
+      qc.invalidateQueries({ queryKey: ['unidades-mapa'] })
+      onClose()
+    },
+  })
+
+  async function onSubmit(values) {
+    await updateMutation.mutateAsync({ ...values, lat: coords?.lat, lng: coords?.lng })
+  }
+
+  return (
+    <Modal isOpen={!!unidad} onClose={onClose} title={`Editar: ${unidad?.nombre}`} size="lg">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {updateMutation.error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+            {updateMutation.error?.response?.data?.error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+            <input {...register('nombre')}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de unidad</label>
+            <input {...register('tipo_unidad')}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Estatus de operación</label>
+            <input {...register('estatus_operacion')}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div className="flex gap-6">
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" {...register('tiene_espirometro')} className="rounded" />
+            Tiene espirómetro
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" {...register('es_servicio_amigable')} className="rounded" />
+            Servicio amigable
+          </label>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Ubicación en mapa {coords && <span className="text-xs text-green-600 font-normal">— {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}</span>}
+          </label>
+          <div className="rounded-xl overflow-hidden border border-gray-200 h-52">
+            <MapContainer
+              center={coords ? [coords.lat, coords.lng] : [19.4326, -99.1332]}
+              zoom={coords ? 13 : 5}
+              style={{ height: '100%', width: '100%' }}
+            >
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <MapClickHandler onCoords={setCoords} />
+              {coords && <Marker position={[coords.lat, coords.lng]} icon={markerIcon} />}
+            </MapContainer>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+            Cancelar
+          </button>
+          <button type="submit" disabled={isSubmitting}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50">
+            {isSubmitting ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+// ── Página principal ─────────────────────────────────────────────────────────
+export default function Unidades() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [modal, setModal] = useState(null) // null | 'crear' | 'editar' | 'mapa'
-  const [seleccionado, setSeleccionado] = useState(null)
-  const [coords, setCoords] = useState(null)
+  const [modalHabilitar, setModalHabilitar] = useState(false)
+  const [modalRegistrar, setModalRegistrar] = useState(false)
+  const [modalMapa, setModalMapa] = useState(false)
+  const [unidadEditar, setUnidadEditar] = useState(null)
+  const [unidadDesactivar, setUnidadDesactivar] = useState(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['unidades', page, search],
-    queryFn: () => adminApi.getUnidades({ page, limit: 20, search }),
+    queryFn: () => adminApi.getUnidades({ page, limit: 20, search, activo: true }),
   })
 
   const { data: mapaData } = useQuery({
     queryKey: ['unidades-mapa'],
-    queryFn: () => adminApi.getUnidadesMapa(),
+    queryFn: adminApi.getUnidadesMapa,
   })
-
-  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm()
-
-  const createMutation = useMutation({
-    mutationFn: adminApi.createUnidad,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['unidades'] }); cerrarModal() },
-  })
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, ...body }) => adminApi.updateUnidad(id, body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['unidades'] }); cerrarModal() },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: adminApi.deleteUnidad,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['unidades'] }),
-  })
-
-  function abrirCrear() {
-    reset(); setCoords(null); setModal('crear')
-  }
-
-  function abrirEditar(row) {
-    setSeleccionado(row)
-    setCoords(row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null)
-    reset({
-      clues: row.clues,
-      nombre: row.nombre,
-      tipo_unidad: row.tipo_unidad || '',
-      estatus_operacion: row.estatus_operacion || '',
-      tiene_espirometro: row.tiene_espirometro,
-      es_servicio_amigable: row.es_servicio_amigable,
-    })
-    setModal('editar')
-  }
-
-  function cerrarModal() {
-    setModal(null); setSeleccionado(null); setCoords(null); reset()
-  }
-
-  async function onSubmit(values) {
-    const body = { ...values, lat: coords?.lat, lng: coords?.lng }
-    if (modal === 'crear') {
-      await createMutation.mutateAsync(body)
-    } else {
-      await updateMutation.mutateAsync({ id: seleccionado.id, ...body })
-    }
-  }
 
   const columns = [
-    { key: 'clues', label: 'CLUES' },
-    { key: 'nombre', label: 'Nombre' },
-    { key: 'tipo_unidad', label: 'Tipo' },
-    { key: 'entidad', label: 'Entidad' },
-    { key: 'municipio', label: 'Municipio' },
+    { key: 'clues', label: 'CLUES', render: (row) => <span className="font-mono text-sm">{row.clues}</span> },
+    { key: 'nombre', label: 'Unidad' },
+    { key: 'tipo_unidad', label: 'Tipo', render: (row) => row.tipo_unidad || <span className="text-gray-300">—</span> },
+    { key: 'entidad', label: 'Entidad', render: (row) => row.entidad || <span className="text-gray-300">—</span> },
+    { key: 'municipio', label: 'Municipio', render: (row) => row.municipio || <span className="text-gray-300">—</span> },
     {
       key: 'activo',
       label: 'Estatus',
@@ -120,38 +517,43 @@ export default function Unidades() {
       key: 'coords',
       label: 'Coords',
       render: (row) => row.lat
-        ? <span className="text-xs text-gray-400">{parseFloat(row.lat).toFixed(4)}, {parseFloat(row.lng).toFixed(4)}</span>
+        ? <span className="text-xs text-gray-400 font-mono">{parseFloat(row.lat).toFixed(3)}, {parseFloat(row.lng).toFixed(3)}</span>
         : <span className="text-xs text-gray-300">Sin coords</span>,
     },
   ]
-
-  const errorMsg = createMutation.error?.response?.data?.error
-    || updateMutation.error?.response?.data?.error
 
   return (
     <div className="p-6">
       <PageHeader
         title="Unidades Médicas"
-        subtitle={`${data?.pagination?.total ?? 0} unidades registradas`}
+        subtitle={`${data?.pagination?.total ?? 0} unidades habilitadas`}
         action={
           <div className="flex gap-2">
             <button
-              onClick={() => setModal('mapa')}
+              onClick={() => setModalMapa(true)}
               className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              🗺 Ver mapa
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              Ver mapa
             </button>
             <button
-              onClick={abrirCrear}
+              onClick={() => setModalRegistrar(true)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+            >
+              + Registrar en catálogo
+            </button>
+            <button
+              onClick={() => setModalHabilitar(true)}
               className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors"
             >
-              + Nueva unidad
+              + Habilitar unidad
             </button>
           </div>
         }
       />
 
-      {/* Buscador */}
       <div className="mb-4">
         <input
           type="search"
@@ -171,14 +573,14 @@ export default function Unidades() {
         actions={(row) => (
           <div className="flex gap-1 justify-end">
             <button
-              onClick={() => abrirEditar(row)}
+              onClick={() => setUnidadEditar(row)}
               className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
             >
               Editar
             </button>
             {row.activo && (
               <button
-                onClick={() => { if (confirm(`¿Desactivar ${row.nombre}?`)) deleteMutation.mutate(row.id) }}
+                onClick={() => setUnidadDesactivar(row)}
                 className="px-3 py-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
               >
                 Desactivar
@@ -188,113 +590,31 @@ export default function Unidades() {
         )}
       />
 
-      {/* Modal crear/editar */}
-      <Modal
-        isOpen={modal === 'crear' || modal === 'editar'}
-        onClose={cerrarModal}
-        title={modal === 'crear' ? 'Nueva unidad médica' : `Editar: ${seleccionado?.nombre}`}
-        size="lg"
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {errorMsg && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-              {errorMsg}
-            </div>
-          )}
+      {/* Modales */}
+      <ModalHabilitar
+        isOpen={modalHabilitar}
+        onClose={() => setModalHabilitar(false)}
+      />
+      <ModalRegistrarCatalogo
+        isOpen={modalRegistrar}
+        onClose={() => setModalRegistrar(false)}
+      />
+      <ModalEditar
+        unidad={unidadEditar}
+        onClose={() => setUnidadEditar(null)}
+      />
+      <ModalDesactivar
+        unidad={unidadDesactivar}
+        onClose={() => setUnidadDesactivar(null)}
+      />
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">CLUES *</label>
-              <input
-                {...register('clues', { required: 'Requerido' })}
-                disabled={modal === 'editar'}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none disabled:bg-gray-50"
-                placeholder="Ej. DFIMB000026"
-              />
-              {errors.clues && <p className="text-red-500 text-xs mt-1">{errors.clues.message}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-              <input
-                {...register('nombre', { required: 'Requerido' })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                placeholder="Nombre de la unidad"
-              />
-              {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre.message}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de unidad</label>
-              <input
-                {...register('tipo_unidad')}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                placeholder="Ej. Centro de Salud"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estatus operación</label>
-              <input
-                {...register('estatus_operacion')}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                placeholder="Ej. En operación"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input type="checkbox" {...register('tiene_espirometro')} className="rounded" />
-              Tiene espirómetro
-            </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input type="checkbox" {...register('es_servicio_amigable')} className="rounded" />
-              Servicio amigable
-            </label>
-          </div>
-
-          {/* Mini mapa para seleccionar coordenadas */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ubicación en mapa {coords && <span className="text-xs text-green-600 font-normal">— {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}</span>}
-            </label>
-            <p className="text-xs text-gray-400 mb-2">Haz clic en el mapa para colocar la ubicación de la unidad</p>
-            <div className="rounded-xl overflow-hidden border border-gray-200 h-64">
-              <MapContainer
-                center={coords ? [coords.lat, coords.lng] : [19.4326, -99.1332]}
-                zoom={coords ? 14 : 5}
-                style={{ height: '100%', width: '100%' }}
-              >
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <MapClickHandler onCoords={setCoords} />
-                {coords && <Marker position={[coords.lat, coords.lng]} icon={markerIcon} />}
-              </MapContainer>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={cerrarModal} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50"
-            >
-              {isSubmitting ? 'Guardando...' : modal === 'crear' ? 'Crear unidad' : 'Guardar cambios'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Modal mapa general */}
-      <Modal isOpen={modal === 'mapa'} onClose={cerrarModal} title="Mapa de Unidades Médicas" size="xl">
+      {/* Modal mapa global */}
+      <Modal isOpen={modalMapa} onClose={() => setModalMapa(false)} title="Mapa de Unidades Médicas" size="xl">
         <div className="rounded-xl overflow-hidden h-[500px]">
           <MapContainer center={[23.6345, -102.5528]} zoom={5} style={{ height: '100%', width: '100%' }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             {(mapaData?.data ?? []).map((u) => (
-              <Marker key={u.id} position={[u.lat, u.lng]} icon={markerIcon}>
+              <Marker key={u.id} position={[parseFloat(u.lat), parseFloat(u.lng)]} icon={markerIcon}>
                 <Popup>
                   <strong>{u.nombre}</strong><br />
                   CLUES: {u.clues}<br />

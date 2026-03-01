@@ -174,7 +174,76 @@ export async function actualizar(req, res) {
 }
 
 /**
- * DELETE /api/admin/unidades/:id  — soft delete
+ * GET /api/admin/unidades/catalogo
+ * Busca unidades con activo=false (catálogo de unidades pendientes de habilitar)
+ * Query params: q (búsqueda por nombre o CLUES)
+ */
+export async function buscarCatalogo(req, res) {
+  const q = req.query.q?.trim() || ''
+  const limit = Math.min(50, parseInt(req.query.limit) || 20)
+
+  const { rows } = await pool.query(
+    `SELECT
+       u.id, u.clues, u.nombre, u.tipo_unidad, u.estatus_operacion, u.activo,
+       ST_X(u.geom) AS lng, ST_Y(u.geom) AS lat,
+       a.nombre_colonia, a.codigo_postal,
+       m.nombre AS municipio, e.nombre AS entidad
+     FROM adm_unidades_medicas u
+     LEFT JOIN cat_asentamientos_cp a ON u.asentamiento_id = a.id
+     LEFT JOIN cat_municipios m ON a.municipio_id = m.id
+     LEFT JOIN cat_entidades e ON m.entidad_id = e.id
+     WHERE u.activo = false
+       AND ($1 = '' OR u.nombre ILIKE $2 OR u.clues ILIKE $2)
+     ORDER BY u.nombre
+     LIMIT $3`,
+    [q, `%${q}%`, limit]
+  )
+  res.json({ data: rows })
+}
+
+/**
+ * POST /api/admin/unidades/:id/habilitar
+ * Habilita una unidad inactiva del catálogo
+ */
+export async function habilitar(req, res) {
+  const { id } = req.params
+
+  const anterior = await pool.query(
+    'SELECT id, clues, nombre, activo FROM adm_unidades_medicas WHERE id = $1',
+    [id]
+  )
+  if (!anterior.rows[0]) return res.status(404).json({ error: 'Unidad no encontrada' })
+  if (anterior.rows[0].activo) {
+    return res.status(409).json({ error: 'La unidad ya está habilitada' })
+  }
+
+  const { rows } = await pool.query(
+    'UPDATE adm_unidades_medicas SET activo = true, updated_at = NOW() WHERE id = $1 RETURNING id, clues, nombre, activo',
+    [id]
+  )
+
+  await auditLog({
+    usuario_id: req.user.sub,
+    accion: 'UPDATE',
+    tabla_afectada: 'adm_unidades_medicas',
+    registro_id: id,
+    datos_anteriores: { activo: false },
+    datos_nuevos: { activo: true },
+    ip: getClientIp(req),
+    user_agent: req.headers['user-agent'],
+  })
+
+  res.json({ data: rows[0], mensaje: `Unidad "${rows[0].nombre}" habilitada exitosamente` })
+}
+
+/**
+ * POST /api/admin/unidades (catálogo — crea con activo=false)
+ * Registra una unidad en el catálogo sin habilitarla todavía.
+ * El campo activo puede enviarse explícitamente para crearla activa también.
+ */
+
+/**
+ * DELETE /api/admin/unidades/:id  — soft delete (desactivar)
  */
 export async function desactivar(req, res) {
   const { id } = req.params

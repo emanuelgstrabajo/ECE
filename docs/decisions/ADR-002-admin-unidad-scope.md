@@ -1,266 +1,252 @@
 # ADR-002 — Alcance del Rol ADMIN_UNIDAD (Fase 2)
 
 **Fecha:** 2026-02-28
-**Estado:** ⏳ EN REVISIÓN — Pendiente de respuestas
+**Estado:** ✅ APROBADO
 **Autor:** Claude (SIRES Dev Agent)
-**Contexto:** ADR-001 aprobado — iniciando diseño de Fase 2
+**Contexto:** ADR-001 aprobado — decisiones de Fase 2 registradas
 
 ---
 
 ## Objetivo de este documento
 
-Definir con precisión qué puede y qué no puede hacer un `ADMIN_UNIDAD` dentro del
-sistema SIRES. Las respuestas aquí determinarán:
-
-- Las rutas y controladores a construir en el backend
-- La estructura del dashboard del administrador
-- El modelo de permisos dentro del middleware `requireUnidad`
-- El alcance de los datos visibles en cada pantalla
-
-Responde cada pregunta con el número/letra de la opción elegida o escribe
-tu propia respuesta libre al final de cada sección.
+Define qué puede y qué no puede hacer un `ADMIN_UNIDAD` dentro del sistema SIRES.
+Estas decisiones determinan las rutas y controladores del backend, el middleware de
+scope, la estructura del dashboard y las pantallas de gestión del frontend.
 
 ---
 
-## Sección 1 — Gestión de Personal y Usuarios en la Unidad
+## Decisiones Aprobadas
 
-### P1. ¿Qué puede crear el ADMIN_UNIDAD sobre el personal?
+### P1 — Gestión de personal y usuarios ✅
+**Respuesta: D**
 
-Un administrador de unidad necesita gestionar a su equipo. ¿Cuánto poder tiene
-sobre la creación de cuentas?
+El ADMIN_UNIDAD puede:
+- Crear cuentas completas (`adm_usuarios` + `adm_personal_salud`) con contraseña temporal
+- Asignar roles operativos (MEDICO, ENFERMERA, RECEPCIONISTA) a usuarios de su unidad
+- **Designar a otro usuario de su unidad como ADMIN_UNIDAD** (sin requerir al SUPERADMIN)
 
-**Opciones:**
-
-| # | Capacidad | Implicación técnica |
-|---|-----------|---------------------|
-| A | Solo puede ver el personal asignado a su unidad. No puede crear ni editar usuarios. | El SUPERADMIN gestiona todo lo relacionado a usuarios. El admin solo consulta. |
-| B | Puede crear/editar perfiles de personal (`adm_personal_salud`) de su unidad, pero NO puede crear cuentas de acceso (`adm_usuarios`). Debe solicitar al SUPERADMIN. | Separación entre perfil profesional y credencial de acceso. |
-| C | Puede crear cuentas completas (usuario + contraseña temporal) para personal de su unidad, con roles operativos (MEDICO, ENFERMERA, RECEPCIONISTA). NO puede crear otros ADMIN_UNIDAD. | Autonomía total del admin; mayor complejidad en el backend. |
-| D | Puede hacer todo lo de C y además puede designar a otro usuario de su unidad como ADMIN_UNIDAD. | Delegación completa; riesgo de escalada de privilegios si no se valida. |
-
-**Tu respuesta:** ___
+**Restricciones de implementación:**
+- Un ADMIN_UNIDAD solo puede asignar roles ≤ su propio nivel (no puede crear SUPERADMIN)
+- La designación de otro ADMIN_UNIDAD queda registrada en `sys_bitacora_auditoria`
+- El SUPERADMIN siempre puede revisar y revocar cualquier asignación
 
 ---
 
-### P2. ¿Puede el ADMIN_UNIDAD restablecer contraseñas?
+### P2 — Reseteo de contraseñas ✅
+**Respuesta: C**
 
-Cuando un médico olvida su contraseña, ¿quién lo resuelve?
+El ADMIN_UNIDAD puede resetear contraseñas de:
+- MEDICO, ENFERMERA, RECEPCIONISTA de su unidad
 
-**Opciones:**
+El ADMIN_UNIDAD **NO puede** resetear contraseñas de:
+- Otros ADMIN_UNIDAD (aunque sean de su misma unidad)
+- SUPERADMIN
 
-| # | Comportamiento |
-|---|---------------|
-| A | Solo el SUPERADMIN puede resetear contraseñas. |
-| B | El ADMIN_UNIDAD puede resetear la contraseña de cualquier usuario asignado a su unidad (genera contraseña temporal). |
-| C | El ADMIN_UNIDAD puede resetear, pero solo para usuarios con roles MEDICO / ENFERMERA / RECEPCIONISTA (no puede resetear a otro ADMIN_UNIDAD). |
-
-**Tu respuesta:** ___
+El reset genera una contraseña temporal que el usuario debe cambiar en su primer login.
 
 ---
 
-### P3. ¿Puede el ADMIN_UNIDAD revocar asignaciones?
+### P3 — Revocación de asignaciones ✅
+**Respuesta: C**
 
-Si un médico ya no trabaja en la unidad, ¿quién cierra su acceso?
+El ADMIN_UNIDAD puede revocar asignaciones operativas (MEDICO, ENFERMERA, RECEPCIONISTA)
+de su unidad, registrando motivo y fecha de cierre.
 
-**Opciones:**
-
-| # | Comportamiento |
-|---|---------------|
-| A | Solo el SUPERADMIN puede revocar asignaciones. |
-| B | El ADMIN_UNIDAD puede revocar cualquier asignación de su unidad (registrando motivo). |
-| C | El ADMIN_UNIDAD puede revocar asignaciones operativas (MEDICO, ENFERMERA, RECEPCIONISTA) pero no puede revocar a otro ADMIN_UNIDAD de la misma unidad. |
-
-**Tu respuesta:** ___
+**NO puede** revocar la asignación de otro ADMIN_UNIDAD (requiere SUPERADMIN).
 
 ---
 
-## Sección 2 — Catálogos y Normativas de la Unidad
+### P4 — Configuración de guías/normativas GIIS ✅
+**Respuesta clarificada por el usuario:**
 
-### P4. ¿Puede el ADMIN_UNIDAD adoptar/rechazar normativas GIIS?
+> "Los admin de unidad pueden decir qué guías reportarán de información."
 
-Cada unidad puede adoptar un subconjunto de las normativas GIIS (formularios
-dinámicos). ¿Quién configura esto?
+El ADMIN_UNIDAD puede seleccionar cuáles de las normativas/formularios GIIS del
+catálogo global estarán activos para su unidad. **No puede crear ni eliminar**
+normativas del catálogo global (eso es exclusivo del SUPERADMIN).
 
-**Opciones:**
-
-| # | Comportamiento |
-|---|---------------|
-| A | Solo el SUPERADMIN configura qué normativas adopta cada unidad. El admin no tiene acceso a esta pantalla. |
-| B | El ADMIN_UNIDAD puede ver las normativas disponibles y marcar cuáles adopta su unidad (sin poder crear o eliminar normativas del catálogo global). |
-| C | El ADMIN_UNIDAD puede gestionar normativas Y puede crear campos personalizados adicionales para su unidad (extiende el formulario base). |
-
-**Tu respuesta:** ___
+**Implementación:** tabla `sys_adopcion_catalogos` o `rel_normatividad_opciones` —
+el admin marca cuáles normativas adopta su unidad.
 
 ---
 
-### P5. ¿Puede el ADMIN_UNIDAD gestionar los servicios de atención activos?
+### P5 — Servicios de atención ✅
+**Respuesta clarificada por el usuario:**
 
-La tabla `cat_servicios_atencion` define los servicios que ofrece cada unidad
-(consulta general, urgencias, laboratorio, etc.).
+> "Solo podrán decir qué de lo global usará en particular su unidad. Ej: mi unidad
+> solo tiene médicos de once y medicina general aunque todo el catálogo tenga más
+> especialidades."
 
-**Opciones:**
+El ADMIN_UNIDAD activa/desactiva servicios del catálogo global para su unidad.
+**No puede crear nuevos tipos de servicio.**
 
-| # | Comportamiento |
-|---|---------------|
-| A | Los servicios son globales y solo el SUPERADMIN los administra. |
-| B | El ADMIN_UNIDAD puede activar/desactivar servicios para su unidad (marca cuáles ofrece), pero no puede crear nuevos tipos de servicio. |
-| C | El ADMIN_UNIDAD puede crear servicios propios de su unidad además de activar/desactivar los globales. |
-
-**Tu respuesta:** ___
-
----
-
-## Sección 3 — Datos Clínicos (Pacientes y Citas)
-
-### P6. ¿Qué visibilidad tiene el ADMIN_UNIDAD sobre pacientes?
-
-Esta es una decisión crítica para la privacidad (NOM-024-SSA3).
-
-**Opciones:**
-
-| # | Comportamiento |
-|---|---------------|
-| A | El ADMIN_UNIDAD NO tiene acceso a expedientes clínicos individuales. Solo ve métricas agregadas (totales de citas, atenciones por servicio, etc.). |
-| B | El ADMIN_UNIDAD puede ver la lista de pacientes atendidos en su unidad (nombre, CURP, última visita) pero NO puede abrir el expediente clínico. |
-| C | El ADMIN_UNIDAD tiene acceso de lectura completo al expediente de cualquier paciente atendido en su unidad (para auditoría interna). |
-
-**Tu respuesta:** ___
+**Implementación:** tabla puente `unidad_servicios_activos` (o columna en
+`cat_matriz_personal_servicio`) que registra qué servicios del catálogo global
+están habilitados por unidad.
 
 ---
 
-### P7. ¿Puede el ADMIN_UNIDAD gestionar la agenda de citas?
+### P6 — Visibilidad sobre pacientes ✅
+**Respuesta: C**
 
-Quizás el administrador necesita resolver conflictos en la agenda.
+El ADMIN_UNIDAD tiene **acceso de lectura completo** al expediente de cualquier
+paciente atendido en su unidad, para fines de auditoría interna.
 
-**Opciones:**
-
-| # | Comportamiento |
-|---|---------------|
-| A | La agenda es exclusiva del rol RECEPCIONISTA. El ADMIN_UNIDAD no puede modificar citas. |
-| B | El ADMIN_UNIDAD puede ver la agenda de su unidad y cancelar/reprogramar citas (por ejemplo, si un médico no llegó). |
-| C | El ADMIN_UNIDAD tiene control total sobre la agenda (crear, cancelar, reprogramar, asignar a otro médico). |
-
-**Tu respuesta:** ___
+**Nota NOM-024:** Todo acceso al expediente queda registrado en `sys_bitacora_auditoria`
+con el campo `accion = 'CONSULTA_EXPEDIENTE'` y el `usuario_id` del admin.
 
 ---
 
-## Sección 4 — Bitácora y Auditoría
+### P7 — Gestión de agenda ✅
+**Respuesta: C**
 
-### P8. ¿Qué parte de la bitácora puede ver el ADMIN_UNIDAD?
-
-La tabla `sys_bitacora_auditoria` registra TODOS los eventos del sistema.
-
-**Opciones:**
-
-| # | Comportamiento |
-|---|---------------|
-| A | El ADMIN_UNIDAD no tiene acceso a la bitácora. Solo el SUPERADMIN la consulta. |
-| B | El ADMIN_UNIDAD puede ver únicamente las acciones realizadas por usuarios de su unidad (filtrado por `unidad_medica_id`). |
-| C | El ADMIN_UNIDAD puede ver todas las acciones en su unidad, incluyendo las realizadas por pacientes vinculados a ella. |
-| D | El ADMIN_UNIDAD tiene vista completa de la bitácora (igual que SUPERADMIN) pero solo de eventos de su unidad. |
-
-**Tu respuesta:** ___
+El ADMIN_UNIDAD tiene **control total** sobre la agenda de su unidad:
+- Crear, cancelar y reprogramar citas
+- Reasignar citas a otro médico disponible
+- Ver disponibilidad de todos los médicos de su unidad
 
 ---
 
-## Sección 5 — Sesión y Navegación
+### P8 — Acceso a bitácora ✅
+**Respuesta: D**
 
-### P9. ¿Puede el ADMIN_UNIDAD cambiar de unidad activa sin cerrar sesión?
-
-Si un administrador gestiona dos unidades, ¿cómo cambia el contexto?
-
-**Opciones:**
-
-| # | Comportamiento |
-|---|---------------|
-| A | No. Debe cerrar sesión y volver a elegir la unidad en el selector del login. |
-| B | Sí. Hay un selector de unidad en el menú de la app que emite un nuevo token sin cerrar sesión (llamada a `/auth/cambiar-unidad`). |
-| C | Sí, pero solo si tiene exactamente una sesión activa (no múltiples pestañas abiertas). |
-
-**Tu respuesta:** ___
+Vista completa de la bitácora, pero **solo de eventos de su unidad**:
+- Acciones de todos los usuarios (operativos + pacientes) vinculados a la unidad
+- Filtros por usuario, tipo de acción, rango de fechas
+- No puede ver eventos de otras unidades (salvo excepción SUPERADMIN — ver P12)
 
 ---
 
-### P10. ¿El ADMIN_UNIDAD puede también tener un rol operativo?
+### P9 — Cambio de unidad activa sin logout ✅
+**Respuesta: B**
 
-Por ejemplo: una enfermera jefe que administra la unidad Y también registra signos vitales.
+Sí. Habrá un **selector de contexto en el menú** que llama a `POST /auth/cambiar-unidad`
+y emite un nuevo access token con la unidad seleccionada, sin invalidar la sesión.
 
-**Opciones:**
+**Caso de uso:** Un usuario que es ADMIN_UNIDAD en la Clínica Norte y MEDICO en la
+Clínica Sur puede cambiar de contexto sin volver a hacer login.
 
-| # | Comportamiento | Implicación |
-|---|---------------|-------------|
-| A | No. ADMIN_UNIDAD es un rol exclusivo; si una persona lo tiene, no puede tener ENFERMERA u otro rol en la misma unidad. | Más simple, menos confuso. |
-| B | Sí. Una persona puede tener dos asignaciones activas en la misma unidad con distintos roles (ej: ADMIN_UNIDAD + ENFERMERA). El contexto de la sesión determina qué vistas se muestran. | Más flexible; requiere lógica extra en el frontend para mostrar menú combinado. |
-| C | Sí, pero la UI solo muestra el menú del rol más elevado (ADMIN_UNIDAD). Para actuar como ENFERMERA debe cambiar el contexto de sesión explícitamente. | Compromiso entre ambos. |
-
-**Tu respuesta:** ___
+**Implementación:** Endpoint nuevo `/auth/cambiar-unidad` — similar a `seleccionar-unidad`
+pero parte de una sesión activa en lugar de un pre_token.
 
 ---
 
-## Sección 6 — Dashboard del ADMIN_UNIDAD
+### P10 — Roles operativos combinados ✅
+**Respuesta: Sí, con UI diferenciada**
 
-### P11. ¿Qué métricas debe mostrar el dashboard principal?
+Una persona puede tener ADMIN_UNIDAD + un rol operativo en la misma o diferente unidad.
+La UI mostrará **secciones separadas y claramente etiquetadas**:
 
-Marca todas las que apliquen (puedes elegir varias):
+- Sección "Administración" → visible siempre que tenga rol ADMIN_UNIDAD activo
+- Sección operativa (ej: "Enfermería") → visible **solo si tiene ese rol activo en
+  la unidad de contexto actual**
 
-| # | Métrica |
-|---|---------|
+No se mezclan acciones administrativas con operativas en la misma pantalla.
+
+---
+
+### P11 — Métricas del dashboard ✅
+**Respuesta: Todas (A–I)**
+
+El dashboard del ADMIN_UNIDAD mostrará:
+
+| ID | Métrica |
+|----|---------|
 | A | Total de personal activo en la unidad |
-| B | Citas del día (programadas / atendidas / canceladas) |
-| C | Citas de la semana |
+| B | Citas del día: programadas / atendidas / canceladas |
+| C | Citas de la semana (vista de semana actual) |
 | D | Pacientes nuevos del mes |
-| E | Ocupación por servicio (% de citas completadas vs. capacidad) |
-| F | Alertas de usuarios bloqueados que necesitan desbloqueo |
-| G | Normativas/formularios que requieren actualización |
-| H | Actividad reciente (últimas 10 acciones en la bitácora) |
+| E | Ocupación por servicio (% citas completadas vs. capacidad) |
+| F | Alertas: usuarios bloqueados que requieren desbloqueo |
+| G | Normativas/formularios con actualización pendiente |
+| H | Actividad reciente (últimas 10 acciones en bitácora de la unidad) |
 | I | Comparativa mensual (atenciones este mes vs. mes anterior) |
 
-**Tu respuesta (ej: A, B, F):** ___
+---
+
+### P12 — Aislamiento de datos entre unidades ✅
+**Respuesta: B**
+
+Aislamiento por defecto. El SUPERADMIN puede otorgar permisos de "vista cruzada"
+en casos especiales (ej: red de clínicas, supervisión regional).
+
+**Implementación:** campo `puede_ver_unidades` (UUID[] o tabla puente) en el perfil
+del admin. Middleware valida si la unidad solicitada está en su lista de visibles.
 
 ---
 
-## Sección 7 — Restricciones de Alcance (Confirmación)
+## Resumen de decisiones
 
-### P12. ¿El ADMIN_UNIDAD puede ver o afectar datos de OTRAS unidades?
-
-Confirma el aislamiento esperado:
-
-**Opciones:**
-
-| # | Comportamiento |
-|---|---------------|
-| A | Aislamiento total. No puede ver ningún dato de otras unidades, ni siquiera si el SUPERADMIN se lo intenta delegar. |
-| B | Aislamiento por defecto, pero el SUPERADMIN puede otorgar permisos de "vista cruzada" en casos especiales (ej: red de clínicas de la misma organización). |
-
-**Tu respuesta:** ___
+| # | Tema | Decisión |
+|---|------|---------|
+| P1 | Gestión de personal/usuarios | ✅ D — Puede crear cuentas y designar admins |
+| P2 | Reseteo de contraseñas | ✅ C — Sí, excepto a otros ADMIN_UNIDAD |
+| P3 | Revocar asignaciones | ✅ C — Sí, solo roles operativos |
+| P4 | Guías GIIS | ✅ Selecciona cuáles del catálogo global usa su unidad |
+| P5 | Servicios de atención | ✅ B — Activa/desactiva del catálogo global |
+| P6 | Visibilidad pacientes | ✅ C — Lectura completa (con auditoría) |
+| P7 | Gestión de agenda | ✅ C — Control total sobre agenda de su unidad |
+| P8 | Bitácora | ✅ D — Vista completa solo de su unidad |
+| P9 | Cambio de unidad sin logout | ✅ B — Selector en menú + nuevo token |
+| P10 | Rol operativo combinado | ✅ Sí, UI diferenciada por sección |
+| P11 | Métricas dashboard | ✅ Todas (A–I) |
+| P12 | Aislamiento entre unidades | ✅ B — Por defecto total, SUPERADMIN puede delegar |
 
 ---
 
-## Resumen de Preguntas
+## Implicaciones técnicas para Fase 2
 
-| # | Tema | Respondida |
-|---|------|-----------|
-| P1 | ¿Qué puede crear sobre personal/usuarios? | ⬜ |
-| P2 | ¿Puede resetear contraseñas? | ⬜ |
-| P3 | ¿Puede revocar asignaciones? | ⬜ |
-| P4 | ¿Puede adoptar normativas GIIS? | ⬜ |
-| P5 | ¿Puede gestionar servicios de atención? | ⬜ |
-| P6 | ¿Qué visibilidad tiene sobre pacientes? | ⬜ |
-| P7 | ¿Puede gestionar la agenda? | ⬜ |
-| P8 | ¿Qué parte de la bitácora puede ver? | ⬜ |
-| P9 | ¿Puede cambiar de unidad sin logout? | ⬜ |
-| P10 | ¿Puede tener rol operativo también? | ⬜ |
-| P11 | ¿Qué métricas en el dashboard? | ⬜ |
-| P12 | ¿Aislamiento total o delegable? | ⬜ |
+### Nuevos endpoints necesarios
+
+```
+# Gestión de usuarios (scope unidad)
+POST   /api/admin-unidad/usuarios              → crear cuenta + asignación inicial
+GET    /api/admin-unidad/usuarios              → lista de usuarios de la unidad
+PATCH  /api/admin-unidad/usuarios/:id/password → resetear contraseña (no a admins)
+
+# Asignaciones (scope unidad)
+POST   /api/admin-unidad/asignaciones          → crear asignación operativa o admin
+DELETE /api/admin-unidad/asignaciones/:id      → revocar (solo operativas)
+
+# Catálogos de unidad
+GET/PUT /api/admin-unidad/normativas           → normativas GIIS activas para su unidad
+GET/PUT /api/admin-unidad/servicios            → servicios activos para su unidad
+
+# Clínica (scope unidad)
+GET    /api/admin-unidad/pacientes             → lista + expediente (lectura)
+GET/POST/PATCH/DELETE /api/admin-unidad/citas  → control total agenda
+
+# Bitácora
+GET    /api/admin-unidad/bitacora              → filtrada por unidad_medica_id
+
+# Sesión
+POST   /api/auth/cambiar-unidad                → nuevo token sin logout
+
+# Dashboard
+GET    /api/admin-unidad/dashboard             → métricas A–I
+```
+
+### Cambios de BD necesarios (migración 002)
+
+```sql
+-- Activación de servicios por unidad (si no existe ya)
+CREATE TABLE IF NOT EXISTS adm_unidad_servicios (
+    unidad_medica_id INTEGER REFERENCES adm_unidades_medicas(id),
+    servicio_id      INTEGER REFERENCES cat_servicios_atencion(id),
+    activo           BOOLEAN DEFAULT TRUE,
+    PRIMARY KEY (unidad_medica_id, servicio_id)
+);
+
+-- Vista cruzada entre unidades (para P12=B)
+ALTER TABLE adm_usuario_unidad_rol
+    ADD COLUMN IF NOT EXISTS puede_ver_unidades INTEGER[] DEFAULT '{}';
+```
 
 ---
 
 ## Próximos pasos
 
-Una vez respondidas todas las preguntas, este documento pasará a estado
-**✅ APROBADO** y se procederá con:
-
-1. Diseño de las rutas y controladores del ADMIN_UNIDAD
-2. Middleware de scope refinado para operaciones de admin
-3. Dashboard + páginas de gestión en el frontend
-4. Migración adicional si se requieren columnas nuevas (ej: `can_manage_admin` en la tabla puente)
+1. **ADR-003** — Cuestionario suplementario del SUPERADMIN (nuevas dudas surgidas de ADR-002)
+2. **Migración 002** — Ejecutar DDL de cambios de BD de Fase 2
+3. **Controladores ADMIN_UNIDAD** — backend completo
+4. **Dashboard y páginas de gestión** — frontend Fase 2
