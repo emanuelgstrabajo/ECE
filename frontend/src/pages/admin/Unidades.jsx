@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -24,22 +24,12 @@ function MapClickHandler({ onCoords }) {
   return null
 }
 
-function BadgeActivo({ activo }) {
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-      activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-    }`}>
-      {activo ? 'Habilitada' : 'Inactiva'}
-    </span>
-  )
-}
-
 // ── Modal: Habilitar unidad desde catálogo ───────────────────────────────────
 function ModalHabilitar({ isOpen, onClose }) {
   const qc = useQueryClient()
   const [busqueda, setBusqueda] = useState('')
   const [seleccionada, setSeleccionada] = useState(null)
-  const [paso, setPaso] = useState('buscar') // 'buscar' | 'confirmar'
+  const [paso, setPaso] = useState('buscar')
 
   const { data, isLoading } = useQuery({
     queryKey: ['catalogo-unidades', busqueda],
@@ -52,7 +42,6 @@ function ModalHabilitar({ isOpen, onClose }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['unidades'] })
       qc.invalidateQueries({ queryKey: ['unidades-mapa'] })
-      qc.invalidateQueries({ queryKey: ['dashboard-superadmin'] })
       handleClose()
     },
   })
@@ -69,20 +58,17 @@ function ModalHabilitar({ isOpen, onClose }) {
     <Modal isOpen={isOpen} onClose={handleClose} title="Habilitar unidad médica" size="lg">
       {paso === 'buscar' && (
         <div className="space-y-4">
-          <div>
-            <p className="text-sm text-gray-500 mb-3">
-              Busca una unidad del catálogo por CLUES o nombre para habilitarla en el sistema.
-              Solo aparecen unidades aún no habilitadas.
-            </p>
-            <input
-              type="search"
-              placeholder="Buscar por CLUES o nombre de unidad..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              autoFocus
-            />
-          </div>
+          <p className="text-sm text-gray-500">
+            Busca una unidad del catálogo por CLUES o nombre para habilitarla. Solo aparecen unidades aún no habilitadas.
+          </p>
+          <input
+            type="search"
+            placeholder="Buscar por CLUES o nombre de unidad..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            autoFocus
+          />
 
           {isLoading && (
             <div className="flex justify-center py-6">
@@ -90,19 +76,14 @@ function ModalHabilitar({ isOpen, onClose }) {
             </div>
           )}
 
-          {!isLoading && unidades.length === 0 && busqueda.length >= 2 && (
-            <div className="text-center py-8 text-sm text-gray-500">
-              <p className="mb-2">No se encontraron unidades con "{busqueda}" en el catálogo.</p>
-              <p className="text-xs text-gray-400">
-                Si la unidad no existe en el catálogo, puedes registrarla con el botón "+ Registrar en catálogo".
-              </p>
-            </div>
+          {!isLoading && busqueda.length < 2 && (
+            <p className="text-center py-6 text-sm text-gray-400">Escribe al menos 2 caracteres para buscar</p>
           )}
 
-          {!isLoading && unidades.length === 0 && busqueda.length < 2 && (
-            <div className="text-center py-6 text-sm text-gray-400">
-              Escribe al menos 2 caracteres para buscar
-            </div>
+          {!isLoading && busqueda.length >= 2 && unidades.length === 0 && (
+            <p className="text-center py-8 text-sm text-gray-500">
+              No se encontraron unidades con "{busqueda}" en el catálogo.
+            </p>
           )}
 
           {unidades.length > 0 && (
@@ -121,9 +102,7 @@ function ModalHabilitar({ isOpen, onClose }) {
                         {u.tipo_unidad && <span> · {u.tipo_unidad}</span>}
                       </p>
                       {(u.municipio || u.entidad) && (
-                        <p className="text-xs text-gray-400">
-                          {u.municipio}{u.municipio && u.entidad ? ', ' : ''}{u.entidad}
-                        </p>
+                        <p className="text-xs text-gray-400">{u.municipio}{u.municipio && u.entidad ? ', ' : ''}{u.entidad}</p>
                       )}
                     </div>
                     <svg className="w-5 h-5 text-primary-400 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -139,10 +118,7 @@ function ModalHabilitar({ isOpen, onClose }) {
 
       {paso === 'confirmar' && seleccionada && (
         <div className="space-y-5">
-          <button
-            onClick={() => setPaso('buscar')}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
-          >
+          <button onClick={() => setPaso('buscar')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -171,16 +147,6 @@ function ModalHabilitar({ isOpen, onClose }) {
               <div>
                 <dt className="text-gray-500 text-xs">Entidad</dt>
                 <dd className="text-gray-900">{seleccionada.entidad || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500 text-xs">Estatus operación</dt>
-                <dd className="text-gray-900">{seleccionada.estatus_operacion || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500 text-xs">Coordenadas</dt>
-                <dd className="text-gray-900 font-mono text-xs">
-                  {seleccionada.lat ? `${parseFloat(seleccionada.lat).toFixed(4)}, ${parseFloat(seleccionada.lng).toFixed(4)}` : 'Sin coords'}
-                </dd>
               </div>
             </dl>
           </div>
@@ -227,14 +193,13 @@ function ModalRegistrarCatalogo({ isOpen, onClose }) {
   })
 
   async function onSubmit(values) {
-    // Las unidades nuevas se crean sin activar (activo=false) para después habilitarlas
     await createMutation.mutateAsync({ ...values, lat: coords?.lat, lng: coords?.lng, activo: false })
   }
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Registrar unidad en catálogo" size="lg">
       <p className="text-sm text-gray-500 mb-4">
-        Registra una nueva unidad médica en el catálogo del sistema. Después podrás habilitarla desde la pantalla principal.
+        Registra una nueva unidad médica en el catálogo. Después podrás habilitarla desde la pestaña "Deshabilitadas".
       </p>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {createMutation.error && (
@@ -329,23 +294,23 @@ function ModalDesactivar({ unidad, onClose }) {
     mutationFn: () => adminApi.deleteUnidad(unidad.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['unidades'] })
-      qc.invalidateQueries({ queryKey: ['dashboard-superadmin'] })
       onClose()
     },
   })
 
   return (
-    <Modal isOpen={!!unidad} onClose={onClose} title="Desactivar unidad médica" size="sm">
+    <Modal isOpen={!!unidad} onClose={onClose} title="Deshabilitar unidad médica" size="sm">
       <div className="space-y-4">
         <div className="border border-red-200 bg-red-50 rounded-xl p-4">
           <p className="text-sm font-semibold text-red-800">{unidad?.nombre}</p>
           <p className="text-xs text-red-600">CLUES: {unidad?.clues}</p>
         </div>
         <div className="text-sm text-gray-600">
-          Al desactivar esta unidad:
+          Al deshabilitar esta unidad:
           <ul className="list-disc list-inside mt-1 text-xs text-gray-500 space-y-0.5">
             <li>El personal asignado perderá acceso</li>
-            <li>La unidad dejará de aparecer en el sistema operativo</li>
+            <li>Pasará a la pestaña "Deshabilitadas" — no se elimina</li>
+            <li>Puedes volver a habilitarla en cualquier momento</li>
             <li>El historial de datos se preserva (NOM-024)</li>
           </ul>
         </div>
@@ -372,7 +337,7 @@ function ModalDesactivar({ unidad, onClose }) {
             disabled={desactivarMut.isPending}
             className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
           >
-            {desactivarMut.isPending ? 'Desactivando...' : 'Desactivar unidad'}
+            {desactivarMut.isPending ? 'Deshabilitando...' : 'Deshabilitar unidad'}
           </button>
         </div>
       </div>
@@ -380,121 +345,22 @@ function ModalDesactivar({ unidad, onClose }) {
   )
 }
 
-// ── Modal: Editar unidad ────────────────────────────────────────────────────
-function ModalEditar({ unidad, onClose }) {
-  const qc = useQueryClient()
-  const [coords, setCoords] = useState(null)
-
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm()
-
-  useEffect(() => {
-    if (unidad) {
-      reset({
-        nombre: unidad.nombre,
-        tipo_unidad: unidad.tipo_unidad || '',
-        estatus_operacion: unidad.estatus_operacion || '',
-        tiene_espirometro: unidad.tiene_espirometro,
-        es_servicio_amigable: unidad.es_servicio_amigable,
-      })
-      setCoords(unidad.lat && unidad.lng ? { lat: parseFloat(unidad.lat), lng: parseFloat(unidad.lng) } : null)
-    }
-  }, [unidad, reset])
-
-  const updateMutation = useMutation({
-    mutationFn: (body) => adminApi.updateUnidad(unidad.id, body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['unidades'] })
-      qc.invalidateQueries({ queryKey: ['unidades-mapa'] })
-      onClose()
-    },
-  })
-
-  async function onSubmit(values) {
-    await updateMutation.mutateAsync({ ...values, lat: coords?.lat, lng: coords?.lng })
-  }
-
-  return (
-    <Modal isOpen={!!unidad} onClose={onClose} title={`Editar: ${unidad?.nombre}`} size="lg">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {updateMutation.error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-            {updateMutation.error?.response?.data?.error}
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-            <input {...register('nombre')}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de unidad</label>
-            <input {...register('tipo_unidad')}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Estatus de operación</label>
-            <input {...register('estatus_operacion')}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none" />
-          </div>
-        </div>
-
-        <div className="flex gap-6">
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-            <input type="checkbox" {...register('tiene_espirometro')} className="rounded" />
-            Tiene espirómetro
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-            <input type="checkbox" {...register('es_servicio_amigable')} className="rounded" />
-            Servicio amigable
-          </label>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Ubicación en mapa {coords && <span className="text-xs text-green-600 font-normal">— {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}</span>}
-          </label>
-          <div className="rounded-xl overflow-hidden border border-gray-200 h-52">
-            <MapContainer
-              center={coords ? [coords.lat, coords.lng] : [19.4326, -99.1332]}
-              zoom={coords ? 13 : 5}
-              style={{ height: '100%', width: '100%' }}
-            >
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              <MapClickHandler onCoords={setCoords} />
-              {coords && <Marker position={[coords.lat, coords.lng]} icon={markerIcon} />}
-            </MapContainer>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
-            Cancelar
-          </button>
-          <button type="submit" disabled={isSubmitting}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50">
-            {isSubmitting ? 'Guardando...' : 'Guardar cambios'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  )
-}
-
 // ── Página principal ─────────────────────────────────────────────────────────
 export default function Unidades() {
+  const qc = useQueryClient()
+  const [tab, setTab] = useState('habilitadas')
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [modalHabilitar, setModalHabilitar] = useState(false)
   const [modalRegistrar, setModalRegistrar] = useState(false)
   const [modalMapa, setModalMapa] = useState(false)
-  const [unidadEditar, setUnidadEditar] = useState(null)
   const [unidadDesactivar, setUnidadDesactivar] = useState(null)
 
+  const activo = tab === 'habilitadas'
+
   const { data, isLoading } = useQuery({
-    queryKey: ['unidades', page, search],
-    queryFn: () => adminApi.getUnidades({ page, limit: 20, search, activo: true }),
+    queryKey: ['unidades', tab, page, search],
+    queryFn: () => adminApi.getUnidades({ page, limit: 20, search, activo }),
   })
 
   const { data: mapaData } = useQuery({
@@ -502,17 +368,26 @@ export default function Unidades() {
     queryFn: adminApi.getUnidadesMapa,
   })
 
+  const habilitarMut = useMutation({
+    mutationFn: (id) => adminApi.habilitarUnidad(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['unidades'] })
+      qc.invalidateQueries({ queryKey: ['unidades-mapa'] })
+    },
+  })
+
+  function cambiarTab(nuevaTab) {
+    setTab(nuevaTab)
+    setPage(1)
+    setSearch('')
+  }
+
   const columns = [
     { key: 'clues', label: 'CLUES', render: (row) => <span className="font-mono text-sm">{row.clues}</span> },
     { key: 'nombre', label: 'Unidad' },
     { key: 'tipo_unidad', label: 'Tipo', render: (row) => row.tipo_unidad || <span className="text-gray-300">—</span> },
     { key: 'entidad', label: 'Entidad', render: (row) => row.entidad || <span className="text-gray-300">—</span> },
     { key: 'municipio', label: 'Municipio', render: (row) => row.municipio || <span className="text-gray-300">—</span> },
-    {
-      key: 'activo',
-      label: 'Estatus',
-      render: (row) => <BadgeActivo activo={row.activo} />,
-    },
     {
       key: 'coords',
       label: 'Coords',
@@ -522,11 +397,13 @@ export default function Unidades() {
     },
   ]
 
+  const total = data?.pagination?.total ?? 0
+
   return (
     <div className="p-6">
       <PageHeader
         title="Unidades Médicas"
-        subtitle={`${data?.pagination?.total ?? 0} unidades habilitadas`}
+        subtitle={`${total} unidad${total !== 1 ? 'es' : ''} ${tab}`}
         action={
           <div className="flex gap-2">
             <button
@@ -534,7 +411,8 @@ export default function Unidades() {
               className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
               </svg>
               Ver mapa
             </button>
@@ -554,6 +432,27 @@ export default function Unidades() {
         }
       />
 
+      {/* ── Pestañas ── */}
+      <div className="flex gap-1 mb-5 border-b border-gray-200">
+        {[
+          { key: 'habilitadas', label: 'Habilitadas' },
+          { key: 'deshabilitadas', label: 'Deshabilitadas' },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => cambiarTab(key)}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              tab === key
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Buscador ── */}
       <div className="mb-4">
         <input
           type="search"
@@ -564,6 +463,7 @@ export default function Unidades() {
         />
       </div>
 
+      {/* ── Tabla ── */}
       <DataTable
         columns={columns}
         data={data?.data ?? []}
@@ -572,18 +472,21 @@ export default function Unidades() {
         onPageChange={setPage}
         actions={(row) => (
           <div className="flex gap-1 justify-end">
-            <button
-              onClick={() => setUnidadEditar(row)}
-              className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Editar
-            </button>
-            {row.activo && (
+            {tab === 'habilitadas' && (
               <button
                 onClick={() => setUnidadDesactivar(row)}
                 className="px-3 py-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
               >
-                Desactivar
+                Deshabilitar
+              </button>
+            )}
+            {tab === 'deshabilitadas' && (
+              <button
+                onClick={() => habilitarMut.mutate(row.id)}
+                disabled={habilitarMut.isPending}
+                className="px-3 py-1 text-xs bg-green-50 text-green-700 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {habilitarMut.isPending ? '...' : 'Habilitar'}
               </button>
             )}
           </div>
@@ -591,22 +494,9 @@ export default function Unidades() {
       />
 
       {/* Modales */}
-      <ModalHabilitar
-        isOpen={modalHabilitar}
-        onClose={() => setModalHabilitar(false)}
-      />
-      <ModalRegistrarCatalogo
-        isOpen={modalRegistrar}
-        onClose={() => setModalRegistrar(false)}
-      />
-      <ModalEditar
-        unidad={unidadEditar}
-        onClose={() => setUnidadEditar(null)}
-      />
-      <ModalDesactivar
-        unidad={unidadDesactivar}
-        onClose={() => setUnidadDesactivar(null)}
-      />
+      <ModalHabilitar isOpen={modalHabilitar} onClose={() => setModalHabilitar(false)} />
+      <ModalRegistrarCatalogo isOpen={modalRegistrar} onClose={() => setModalRegistrar(false)} />
+      <ModalDesactivar unidad={unidadDesactivar} onClose={() => setUnidadDesactivar(null)} />
 
       {/* Modal mapa global */}
       <Modal isOpen={modalMapa} onClose={() => setModalMapa(false)} title="Mapa de Unidades Médicas" size="xl">
